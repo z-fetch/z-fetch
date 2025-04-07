@@ -35,13 +35,271 @@ Just arguments and wraps native fetch so can work in any framework or JavaScript
   <script src="https://cdn.jsdelivr.net/npm/@z-fetch/fetch@latest/dist/index.js"></script>
   ```
 
-## Notes For Nerds
+## 🗃️ Notes For Nerds
 
 - Z-Fetch is built on top of the native fetch API, so all fetch options are valid and supported.
 - JSON parsing responses is done automatically, but you can disable it if needed via request options or global config.
 - Payloads or bodys are automatically stringified to JSON, but you can disable it if needed via request options or global config.
+- By default content type is set to `application/json` and accept to `*/*`, but you can override them via request options or global config.
 
-## 😇 How To Use With Examples
+## 🧑‍💻 How It Works?
+
+## Creating Custom Instances
+
+Z-Fetch allows you to create custom instances with their own configuration, which is useful for different API endpoints or services in your application.
+
+### Basic Instance Creation
+
+```js
+import { createInstance } from '@z-fetch/fetch';
+
+// Create a custom instance with specific configuration
+const api = createInstance({
+  baseUrl: 'https://jsonplaceholder.typicode.com',
+  headers: {
+    'X-Custom-Header': 'custom-value'
+  },
+  timeout: 30000
+});
+
+// Use the instance to make requests
+const getPosts = async () => {
+  const result = await api.get('/posts');
+  if (result?.data) {
+    console.log('Posts:', result.data);
+  }
+};
+
+const createPost = async () => {
+  const result = await api.post('/posts', {
+    body: {
+      title: 'New Post',
+      body: 'This is the content',
+      userId: 1
+    }
+  });
+  
+  if (result?.data) {
+    console.log('Created post:', result.data);
+  }
+};
+```
+
+### Instance Methods
+
+Each instance provides the following methods:
+
+- `get(url, options?)` - Make a GET request
+- `post(url, options?)` - Make a POST request
+- `put(url, options?)` - Make a PUT request
+- `delete(url, options?)` - Make a DELETE request
+- `patch(url, options?)` - Make a PATCH request
+- `options(url, options?)` - Make an OPTIONS request
+- `trace(url, options?)` - Make a TRACE request
+- `head(url, options?)` - Make a HEAD request
+- `custom(url, method, options?)` - Make a request with a custom method
+
+### Instance Helpers
+
+Each instance also provides helper methods:
+
+```js
+// Get the current configuration
+const config = api.helpers.getConfig();
+
+// Set a bearer token for authentication
+api.helpers.setBearerToken('your-token-here');
+```
+
+## Using Hooks (Interceptors) - Yes Interceptors
+
+Z-Fetch supports request and response hooks that allow you to intercept and modify requests before they're sent and responses before they're returned. This is a common pattern in fetch libraries and so you can use it in kinda similar use cases.
+
+Each hook is set when setting up your instance and it's value is a callback which has a context in it's argument, the context has the request, result and config of the instance at runtime, you can modify and return your modified config, request or result respectively, as you can see below.
+
+### Request Hooks
+
+Request hooks allow you to modify the request before it's sent:
+
+```js
+const api = createInstance({
+  baseUrl: 'https://jsonplaceholder.typicode.com',
+  hooks: {
+    onRequest: async ({ request }) => {
+      console.log('Request about to be sent:', request);
+      
+      // Add a custom query parameter to all GET requests
+      if (request.method === 'GET') {
+        return {
+          request: {
+            ...request,
+            url: request.url + '?custom=true',
+          },
+        };
+      }
+      
+      // Add a timestamp to all requests
+      return {
+        request: {
+          ...request,
+          options: {
+            ...request.options,
+            headers: {
+              ...request.options.headers,
+              'X-Timestamp': Date.now().toString()
+            }
+          }
+        }
+      };
+    }
+  }
+});
+```
+
+### Response Hooks
+
+Response hooks allow you to modify the response before it's returned:
+
+```js
+const api = createInstance({
+  baseUrl: 'https://jsonplaceholder.typicode.com',
+  hooks: {
+    onResponse: async ({ result }) => {
+      console.log('Response received:', result);
+      
+      // Transform the response data
+      if (result?.data) {
+        return {
+          result: {
+            ...result,
+            data: {
+              ...result.data,
+              processed: true,
+              timestamp: Date.now()
+            }
+          }
+        };
+      }
+      
+      return { result };
+    }
+  }
+});
+```
+
+### Combining Request and Response Hooks
+
+You can use both request and response hooks together:
+
+```js
+const api = createInstance({
+  baseUrl: 'https://jsonplaceholder.typicode.com',
+  hooks: {
+    onRequest: async ({ request }) => {
+      // Add authentication header
+      return {
+        request: {
+          ...request,
+          options: {
+            ...request.options,
+            headers: {
+              ...request.options.headers,
+              'Authorization': 'Bearer your-token-here'
+            }
+          }
+        }
+      };
+    },
+    onResponse: async ({ result }) => {
+      // Process successful responses
+      if (result?.data && !result.error) {
+        return {
+          result: {
+            ...result,
+            data: {
+              ...result.data,
+              processedAt: new Date().toISOString()
+            }
+          }
+        };
+      }
+      
+      // Handle errors
+      if (result?.error) {
+        console.error('API Error:', result.error);
+        // You could transform error formats here
+      }
+      
+      return { result };
+    }
+  }
+});
+```
+
+### Real-World Example: Authentication and Logging
+
+```js
+const api = createInstance({
+  baseUrl: 'https://api.example.com',
+  hooks: {
+    onRequest: async ({ request }) => {
+      // Log all outgoing requests
+      console.log(`[${new Date().toISOString()}] Sending ${request.method} request to ${request.url}`);
+      
+      // Add authentication token from localStorage
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        return {
+          request: {
+            ...request,
+            options: {
+              ...request.options,
+              headers: {
+                ...request.options.headers,
+                'Authorization': `Bearer ${token}`
+              }
+            }
+          }
+        };
+      }
+      
+      return { request };
+    },
+    onResponse: async ({ result, config }) => {
+      // Handle 401 Unauthorized errors
+      if (result?.error && result.error.status === 401) {
+        // Clear invalid token
+        localStorage.removeItem('auth_token');
+        
+        // Redirect to login page
+        window.location.href = '/login';
+      }
+      
+      // Add metadata to successful responses
+      if (result?.data) {
+        return {
+          result: {
+            ...result,
+            data: {
+              ...result.data,
+              _meta: {
+                timestamp: Date.now(),
+                environment: process.env.NODE_ENV
+              }
+            }
+          }
+        };
+      }
+      
+      return { result };
+    }
+  }
+});
+```
+
+With these powerful hooks, you can implement complex request/response processing, authentication flows, logging, error handling, and data transformation in a clean and reusable way.
+
+## 😇 Quick Use, No Instance Needed!
 
 ### GET Request
 
@@ -201,54 +459,7 @@ const customRequest = async () => {
 };
 ```
 
-## Advanced Usage 😳
-
-### Set Global Configuration
-
-```js
-import { setConfig, GET } from '@z-fetch/fetch';
-
-setConfig({
-  baseUrl: 'https://jsonplaceholder.typicode.com',
-  timeout: 5000,
-  withCredentials: false,
-  parseJson: true,
-});
-
-const getPosts = async () => {
-  const { data, error, loading } = await GET('/posts');
-  if (data) {
-    console.log('Data:', data);
-  } else {
-    console.error('Error:', error.message);
-  }
-};
-```
-
-Or set per request:
-
-```js
-import { GET } from '@z-fetch/fetch';
-
-const getPosts = async () => {
-  const { data, error, loading } = await GET('https://jsonplaceholder.typicode.com/posts', {
-    parseJson: false,
-    headers: {
-      'Content-Type': 'application/text',
-    },
-    retry: true,
-    maxRetries: 3,
-  });
-
-  if (data) {
-    console.log('Data:', data);
-  } else {
-    console.error('Error:', error.message);
-  }
-};
-```
-
-## List of All Available Config Options
+## List of All Available Config Options 😳
 
 Here is the list of all the available options in addition to the native fetch options. Note that all fetch API options are valid and supported; these below are just enhancements Z-Fetch adds on top.
 
@@ -269,14 +480,6 @@ Here is the list of all the available options in addition to the native fetch op
 | `stringifyPayload` | Whether to stringify request body                    | Automatically stringify request body       | `true`                                                    |
 | `mode`             | CORS mode for requests                               | Set CORS mode (e.g., 'cors', 'no-cors')    | `'cors'`                                                  |
 | `headers`          | Default headers for all requests                     | Set default headers                        | `{ 'Content-Type': 'application/json', 'Accept': '*/*' }` |
-
-Alternatively, you can set the bearer token globally for all requests using the `setBearerToken` method:
-
-```js
-import { setBearerToken } from '@z-fetch/fetch';
-
-setBearerToken('your-bearer-token');
-```
 
 ## More Advanced Features
 

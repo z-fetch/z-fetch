@@ -1,3 +1,33 @@
+export type METHODS =
+  | "GET"
+  | "POST"
+  | "PUT"
+  | "DELETE"
+  | "PATCH"
+  | "OPTIONS"
+  | "TRACE"
+  | "HEAD"
+  | "CUSTOM"
+  | string;
+
+type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+export type Hook = (
+  context: Readonly<Context>,
+) => Promise<DeepPartial<Context>> | void;
+
+export type Context = {
+  config: Config;
+  request: {
+    method: METHODS;
+    url: string;
+    options: RequestOptions;
+  };
+  result: RequestResult | null;
+};
+
 export type Config = {
   baseUrl: string;
   bearerToken: string | null;
@@ -14,6 +44,10 @@ export type Config = {
   stringifyPayload: boolean;
   mode: RequestMode;
   headers: { [key: string]: string };
+  hooks: {
+    onRequest?: Hook;
+    onResponse?: Hook;
+  };
 };
 
 export type RequestResult = {
@@ -51,36 +85,16 @@ export const defaultConfig: Config = {
     "Content-Type": "application/json",
     Accept: "*/*",
   },
+  hooks: {},
 };
 
 let config: Config = { ...defaultConfig };
 
 const cache: Map<string, RequestResult> = new Map();
 
-/**
- * Updates the global configuration with the provided partial configuration.
- * Merges the new configuration with the existing configuration, allowing selective overrides.
- *
- * @param newConfig - A partial configuration object to update the existing configuration
- */
-export function setConfig(newConfig: Partial<Config>): void {
-  config = { ...config, ...newConfig };
-}
-
-/**
- * Sets the bearer token for authentication in the global configuration.
- * Updates both the bearerToken and adds an Authorization header with the token for use for all subsquent requests.
- *
- * @param token - The bearer token to be used for authentication
- */
-export function setBearerToken(token: string): void {
-  config.bearerToken = token;
-  config.headers["Authorization"] = `Bearer ${token}`;
-}
-
 async function request(
   url: string,
-  method: string,
+  method: METHODS,
   options: RequestOptions = { ...defaultConfig },
 ): Promise<RequestResult> {
   const abortController = new AbortController();
@@ -91,7 +105,7 @@ async function request(
   let data: any = null;
   let retryCount = 0;
 
-  const fullUrl = config.baseUrl ? config.baseUrl + url : url;
+  let fullUrl = config.baseUrl ? config.baseUrl + url : url;
 
   const timeoutId = setTimeout(() => {
     abortController.abort();
@@ -114,6 +128,8 @@ async function request(
         headers: { ...config.headers, ...(options.headers || {}) },
       };
 
+      // console.log('fetch options', fetchOptions);
+
       if (
         config.stringifyPayload &&
         fetchOptions.body &&
@@ -121,6 +137,12 @@ async function request(
       ) {
         fetchOptions.body = JSON.stringify(fetchOptions.body);
       }
+
+      if (options.baseUrl) {
+        fullUrl = options.baseUrl + url;
+      }
+
+      // console.log('log', fullUrl, fetchOptions);
 
       const response = await fetch(fullUrl, fetchOptions);
 
@@ -407,4 +429,138 @@ export function CUSTOM(
   options?: RequestOptions,
 ): Promise<RequestResult> {
   return request(url, method, options);
+}
+
+/**
+ * Creates a new Z-Fetch instance with custom configuration.
+ *
+ * @param instanceConfig - Optional configuration object to override default settings
+ * @returns An object containing HTTP methods (get, post, etc.) and helper utilities
+ *
+ * @example
+ * ```typescript
+ * // Create a new instance with custom config
+ * const api = createInstance({
+ *   baseUrl: 'https://api.example.com',
+ *   headers: { 'Content-Type': 'application/json' },
+ *   hooks: {
+ *     // Modify request before sending
+ *     onRequest: (context) => {
+ *       context.request.options.headers['X-Custom-Header'] = 'value';
+ *       return context;
+ *     },
+ *
+ *     // Modify response after receiving
+ *     onResponse: (context) => {
+ *       context.result.data = {
+ *         ...context.result.data,
+ *         customData: 'value'
+ *       };
+ *       return context;
+ *     }
+ *   }
+ * });
+ *
+ * // Make HTTP requests
+ * const data = await api.get('/users');
+ *
+ * // Use Helpers, eg. access instance configuration
+ * const config = api.helpers.getConfig();
+ * ```
+ */
+export function createInstance(instanceConfig: Partial<Config> = {}) {
+  const instanceConfigWithDefaults = { ...defaultConfig, ...instanceConfig };
+  const { onRequest, onResponse } = instanceConfigWithDefaults.hooks || {};
+
+  const interceptor = async (
+    method: METHODS,
+    url: string,
+    options: RequestOptions,
+  ): Promise<RequestResult | null> => {
+    let context: Context = {
+      config: instanceConfigWithDefaults,
+      request: {
+        method,
+        url,
+        options: { ...instanceConfigWithDefaults, ...options },
+      },
+      result: null,
+    };
+
+    const applyPatch = (original: Context, patch?: DeepPartial<Context>) => {
+      if (!patch) return original;
+      return {
+        ...original,
+        ...patch,
+        request: {
+          ...original.request,
+          ...patch.request,
+        },
+        result: patch.result ?? original.result,
+      } as Context;
+    };
+
+    // console.log('context log before::', context.request.options);
+    if (onRequest) {
+      const patch = await onRequest(context);
+      if (patch) {
+        context = applyPatch(context, patch);
+      }
+    }
+
+    // console.log('context log after::', context.request.options);
+
+    const result = await request(
+      context.request.url,
+      context.request.method,
+      context.request.options,
+    );
+
+    context.result = result;
+
+    if (onResponse) {
+      const patch = await onResponse(context);
+      if (patch) {
+        context = applyPatch(context, patch);
+      }
+    }
+
+    return context.result;
+  };
+
+  const createMethod = (method: METHODS) => {
+    return (url: string, options?: RequestOptions) =>
+      interceptor(method, url, options || {});
+  };
+
+  const get = createMethod("GET");
+  const post = createMethod("POST");
+  const put = createMethod("PUT");
+  const delete_ = createMethod("DELETE");
+  const patch = createMethod("PATCH");
+  const options_ = createMethod("OPTIONS");
+  const trace = createMethod("TRACE");
+  const head = createMethod("HEAD");
+  const custom = (url: string, method: string, options?: RequestOptions) =>
+    interceptor(method as METHODS, url, options || {});
+  const setBearerToken = (token: string) => {
+    instanceConfigWithDefaults.bearerToken = token;
+    instanceConfigWithDefaults.headers["Authorization"] = `Bearer ${token}`;
+  };
+
+  return {
+    get,
+    post,
+    put,
+    delete: delete_,
+    patch,
+    options: options_,
+    trace,
+    head,
+    custom,
+    helpers: {
+      getConfig: () => instanceConfigWithDefaults,
+      setBearerToken,
+    },
+  };
 }

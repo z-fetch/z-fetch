@@ -11,6 +11,8 @@ export {
   type RequestOptions,
   type RequestResult,
   TRACE,
-  setConfig,
-  setBearerToken,
+  type METHODS,
+  type Hook,
+  type Context,
+  createInstance,
 } from './src/lib';

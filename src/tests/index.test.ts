@@ -1,13 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  GET,
-  POST,
-  PUT,
-  DELETE,
-  PATCH,
-  setConfig,
-  setBearerToken,
-} from "../../index";
+import { GET, POST, PUT, DELETE, PATCH } from "../../index";
 
 describe("Z-Fetch integration tests (actual network calls)", () => {
   // GET request: fetch a single post from jsonplaceholder
@@ -60,26 +52,26 @@ describe("Z-Fetch integration tests (actual network calls)", () => {
     expect(result.error).toBeNull();
   });
 
-  // Testing global config: set a baseUrl so that GET('/posts/1') resolves correctly.
-  it("should update global config and use baseUrl for GET requests", async () => {
-    // Set the baseUrl for all requests.
-    setConfig({ baseUrl: "https://jsonplaceholder.typicode.com" });
-    const result = await GET("/posts/1");
-    expect(result.data).toHaveProperty("id", 1);
-    expect(result.error).toBeNull();
-    // Optionally reset config after the test:
-    setConfig({ baseUrl: "" });
-  });
+  //   // Testing global config: set a baseUrl so that GET('/posts/1') resolves correctly.
+  //   it("should update global config and use baseUrl for GET requests", async () => {
+  //     // Set the baseUrl for all requests.
+  //     setConfig({ baseUrl: "https://jsonplaceholder.typicode.com" });
+  //     const result = await GET("/posts/1");
+  //     expect(result.data).toHaveProperty("id", 1);
+  //     expect(result.error).toBeNull();
+  //     // Optionally reset config after the test:
+  //     setConfig({ baseUrl: "" });
+  //   });
 
-  // Testing bearer token: use httpbin.org to echo request headers.
-  it("should update headers when setting a bearer token", async () => {
-    // Set a bearer token
-    setBearerToken("my-secret-token");
-    // httpbin.org/anything echoes the request details, including headers.
-    const result = await GET("https://httpbin.org/anything");
-    expect(result.data.headers).toHaveProperty(
-      "Authorization",
-      "Bearer my-secret-token",
-    );
-  });
+  //   // Testing bearer token: use httpbin.org to echo request headers.
+  //   it("should update headers when setting a bearer token", async () => {
+  //     // Set a bearer token
+  //     setBearerToken("my-secret-token");
+  //     // httpbin.org/anything echoes the request details, including headers.
+  //     const result = await GET("https://httpbin.org/anything");
+  //     expect(result.data.headers).toHaveProperty(
+  //       "Authorization",
+  //       "Bearer my-secret-token",
+  //     );
+  //   });
 });

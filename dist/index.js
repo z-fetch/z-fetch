@@ -17,17 +17,11 @@ var defaultConfig = {
   headers: {
     "Content-Type": "application/json",
     Accept: "*/*"
-  }
+  },
+  hooks: {}
 };
 var config = { ...defaultConfig };
 var cache = /* @__PURE__ */ new Map();
-function setConfig(newConfig) {
-  config = { ...config, ...newConfig };
-}
-function setBearerToken(token) {
-  config.bearerToken = token;
-  config.headers["Authorization"] = `Bearer ${token}`;
-}
 async function request(url, method, options = { ...defaultConfig }) {
   const abortController = new AbortController();
   const { signal } = abortController;
@@ -35,7 +29,7 @@ async function request(url, method, options = { ...defaultConfig }) {
   let error = null;
   let data = null;
   let retryCount = 0;
-  const fullUrl = config.baseUrl ? config.baseUrl + url : url;
+  let fullUrl = config.baseUrl ? config.baseUrl + url : url;
   const timeoutId = setTimeout(() => {
     abortController.abort();
     loading = true;
@@ -52,6 +46,9 @@ async function request(url, method, options = { ...defaultConfig }) {
       };
       if (config.stringifyPayload && fetchOptions.body && typeof fetchOptions.body === "object") {
         fetchOptions.body = JSON.stringify(fetchOptions.body);
+      }
+      if (options.baseUrl) {
+        fullUrl = options.baseUrl + url;
       }
       const response = await fetch(fullUrl, fetchOptions);
       if (!response.ok) {
@@ -187,7 +184,84 @@ function HEAD(url, options) {
 function CUSTOM(url, method, options) {
   return request(url, method, options);
 }
+function createInstance(instanceConfig = {}) {
+  const instanceConfigWithDefaults = { ...defaultConfig, ...instanceConfig };
+  const { onRequest, onResponse } = instanceConfigWithDefaults.hooks || {};
+  const interceptor = async (method, url, options) => {
+    let context = {
+      config: instanceConfigWithDefaults,
+      request: {
+        method,
+        url,
+        options: { ...instanceConfigWithDefaults, ...options }
+      },
+      result: null
+    };
+    const applyPatch = (original, patch2) => {
+      if (!patch2) return original;
+      return {
+        ...original,
+        ...patch2,
+        request: {
+          ...original.request,
+          ...patch2.request
+        },
+        result: patch2.result ?? original.result
+      };
+    };
+    if (onRequest) {
+      const patch2 = await onRequest(context);
+      if (patch2) {
+        context = applyPatch(context, patch2);
+      }
+    }
+    const result = await request(
+      context.request.url,
+      context.request.method,
+      context.request.options
+    );
+    context.result = result;
+    if (onResponse) {
+      const patch2 = await onResponse(context);
+      if (patch2) {
+        context = applyPatch(context, patch2);
+      }
+    }
+    return context.result;
+  };
+  const createMethod = (method) => {
+    return (url, options) => interceptor(method, url, options || {});
+  };
+  const get = createMethod("GET");
+  const post = createMethod("POST");
+  const put = createMethod("PUT");
+  const delete_ = createMethod("DELETE");
+  const patch = createMethod("PATCH");
+  const options_ = createMethod("OPTIONS");
+  const trace = createMethod("TRACE");
+  const head = createMethod("HEAD");
+  const custom = (url, method, options) => interceptor(method, url, options || {});
+  const setBearerToken = (token) => {
+    instanceConfigWithDefaults.bearerToken = token;
+    instanceConfigWithDefaults.headers["Authorization"] = `Bearer ${token}`;
+  };
+  return {
+    get,
+    post,
+    put,
+    delete: delete_,
+    patch,
+    options: options_,
+    trace,
+    head,
+    custom,
+    helpers: {
+      getConfig: () => instanceConfigWithDefaults,
+      setBearerToken
+    }
+  };
+}
 
-export { CUSTOM, DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, TRACE, setBearerToken, setConfig };
+export { CUSTOM, DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, TRACE, createInstance };
 //# sourceMappingURL=index.js.map
 //# sourceMappingURL=index.js.map

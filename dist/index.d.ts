@@ -1,3 +1,17 @@
+type METHODS = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS" | "TRACE" | "HEAD" | "CUSTOM" | string;
+type DeepPartial<T> = {
+    [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+type Hook = (context: Readonly<Context>) => Promise<DeepPartial<Context>> | void;
+type Context = {
+    config: Config;
+    request: {
+        method: METHODS;
+        url: string;
+        options: RequestOptions;
+    };
+    result: RequestResult | null;
+};
 type Config = {
     baseUrl: string;
     bearerToken: string | null;
@@ -15,6 +29,10 @@ type Config = {
     mode: RequestMode;
     headers: {
         [key: string]: string;
+    };
+    hooks: {
+        onRequest?: Hook;
+        onResponse?: Hook;
     };
 };
 type RequestResult = {
@@ -34,20 +52,6 @@ type RequestResult = {
 type RequestOptions = Omit<RequestInit, "body"> & {
     body?: BodyInit | object | null;
 } & Partial<Config>;
-/**
- * Updates the global configuration with the provided partial configuration.
- * Merges the new configuration with the existing configuration, allowing selective overrides.
- *
- * @param newConfig - A partial configuration object to update the existing configuration
- */
-declare function setConfig(newConfig: Partial<Config>): void;
-/**
- * Sets the bearer token for authentication in the global configuration.
- * Updates both the bearerToken and adds an Authorization header with the token for use for all subsquent requests.
- *
- * @param token - The bearer token to be used for authentication
- */
-declare function setBearerToken(token: string): void;
 /**
  * Sends an HTTP GET request to the specified URL.
  *
@@ -150,5 +154,79 @@ declare function HEAD(url: string, options?: RequestOptions): Promise<RequestRes
  * @returns {Promise<RequestResult>} The request result
  */
 declare function CUSTOM(url: string, method: string, options?: RequestOptions): Promise<RequestResult>;
+/**
+ * Creates a new Z-Fetch instance with custom configuration.
+ *
+ * @param instanceConfig - Optional configuration object to override default settings
+ * @returns An object containing HTTP methods (get, post, etc.) and helper utilities
+ *
+ * @example
+ * ```typescript
+ * // Create a new instance with custom config
+ * const api = createInstance({
+ *   baseUrl: 'https://api.example.com',
+ *   headers: { 'Content-Type': 'application/json' },
+ *   hooks: {
+ *     // Modify request before sending
+ *     onRequest: (context) => {
+ *       context.request.options.headers['X-Custom-Header'] = 'value';
+ *       return context;
+ *     },
+ *
+ *     // Modify response after receiving
+ *     onResponse: (context) => {
+ *       context.result.data = {
+ *         ...context.result.data,
+ *         customData: 'value'
+ *       };
+ *       return context;
+ *     }
+ *   }
+ * });
+ *
+ * // Make HTTP requests
+ * const data = await api.get('/users');
+ *
+ * // Use Helpers, eg. access instance configuration
+ * const config = api.helpers.getConfig();
+ * ```
+ */
+declare function createInstance(instanceConfig?: Partial<Config>): {
+    get: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
+    post: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
+    put: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
+    delete: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
+    patch: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
+    options: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
+    trace: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
+    head: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
+    custom: (url: string, method: string, options?: RequestOptions) => Promise<RequestResult | null>;
+    helpers: {
+        getConfig: () => {
+            baseUrl: string;
+            bearerToken: string | null;
+            timeout: number;
+            retry: boolean;
+            maxRetries: number;
+            startPolling: boolean;
+            stopPolling: boolean;
+            pollingInterval: number;
+            revalidateCache: number;
+            withCredentials: boolean;
+            withCache: boolean;
+            parseJson: boolean;
+            stringifyPayload: boolean;
+            mode: RequestMode;
+            headers: {
+                [key: string]: string;
+            };
+            hooks: {
+                onRequest?: Hook;
+                onResponse?: Hook;
+            };
+        };
+        setBearerToken: (token: string) => void;
+    };
+};
 
-export { CUSTOM, type Config, DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT, type RequestOptions, type RequestResult, TRACE, setBearerToken, setConfig };
+export { CUSTOM, type Config, type Context, DELETE, GET, HEAD, type Hook, type METHODS, OPTIONS, PATCH, POST, PUT, type RequestOptions, type RequestResult, TRACE, createInstance };

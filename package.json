@@ -1,6 +1,6 @@
 {
   "name": "@z-fetch/fetch",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "The pragmatic native fetch API wrapper made to enhance fetching in JavaScript Applications.",
   "type": "module",
   "private": false,
