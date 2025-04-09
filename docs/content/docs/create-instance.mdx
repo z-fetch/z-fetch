@@ -1,0 +1,102 @@
+---
+title: 👉 Create Instance
+description: Create a Z-fetch instance with custom options or configuration.
+---
+
+Z-Fetch allows you to create custom instances with their own configuration, which is useful for different API endpoints or services in your application.
+
+## Signature
+
+```ts
+import { createInstance } from '@z-fetch/fetch';
+
+const api = createInstance({
+  baseUrl: 'your-domain.com/api',
+  ...otherOptions
+});
+
+ const result = await api.get('/endpoint');
+
+const { data, error, response } = result;
+
+```
+
+## Explanation
+
+1. You can create an instance with custom options or configuration, these will be applied to all requests made through that instance.
+2. You can also create multiple instances with different configurations, allowing you to handle different API endpoints or services in your application.
+3. See [Instance Options](/docs/create-instance-options) for a list of available options.
+4. Each request can also take in z-fetch specific options but also all native fetch options are supported.
+5. Each request returns a result object containing the response data, error, and the native response object if you need more control over the response. And other stuff too for extra functionality such as refetching etc.
+6. You can also setup some interceptors to modify requests or responses before they are sent or received using hooks, see [using hooks](/docs/using-hooks) for more details.
+
+<Callout title="Dev Note" type="info">
+ Z-Fetch is 100% type safe, so expect some cool auto-completions from your IDE.
+</Callout>
+
+### Example Of Basic Instance Creation And Usage
+
+```js
+import { createInstance } from '@z-fetch/fetch';
+
+const api = createInstance({
+  baseUrl: 'https://jsonplaceholder.typicode.com',
+  headers: {
+    'X-Custom-Header': 'custom-value'
+  },
+  timeout: 30000
+});
+
+// Use the instance to make requests
+const getPosts = async () => {
+  const result = await api.get('/posts');
+  if (result?.data) {
+    console.log('Posts:', result.data);
+  }
+};
+
+const createPost = async () => {
+  const result = await api.post('/posts', {
+    body: {
+      title: 'New Post',
+      body: 'This is the content',
+      userId: 1
+    }
+  });
+
+  if(result?.error) {
+    console.error('Error creating post:', result.error);
+    return;
+  }
+
+  if (result?.data) {
+    console.log('Created post:', result.data);
+  }
+};
+```
+
+### Instance Methods
+
+Each instance provides the following methods when created:
+
+- `get(url, options?)` - Make a GET request
+- `post(url, options?)` - Make a POST request
+- `put(url, options?)` - Make a PUT request
+- `delete(url, options?)` - Make a DELETE request
+- `patch(url, options?)` - Make a PATCH request
+- `options(url, options?)` - Make an OPTIONS request
+- `trace(url, options?)` - Make a TRACE request
+- `head(url, options?)` - Make a HEAD request
+- `custom(url, method, options?)` - Make a request with a custom method
+
+### Instance Helpers
+
+Each instance also provides helper methods:
+
+```js
+// Get the current configuration
+const config = api.helpers.getConfig();
+
+// Set a bearer token for authentication
+api.helpers.setBearerToken('your-token-here');
+```

@@ -1,6 +1,6 @@
 # ⚡ Z-Fetch
 
-The pragmatic native fetch API wrapper made to enhance fetching in JavaScript Applications.
+The pragmatic native fetch API wrapper for JavaScript.
 
 Just arguments and wraps native fetch so can work in any framework or JavaScript environment where fetch is available with no additional setup needed.
 
@@ -14,8 +14,9 @@ Just arguments and wraps native fetch so can work in any framework or JavaScript
 - Supports all native fetch API options.
 - Built-in caching with auto revalidation.
 - Built-in request retries and configurable polling.
-- Built-in bearer token handling – no interceptors required!
+- Built-in helpers for common use cases such as setting bearer token!
 - Auto JSON parsing and graceful error handling.
+- Builtin hooks or interceptors.
 - Request refetching on demand.
 - **New! Additional HTTP methods:** OPTIONS, TRACE, HEAD and a CUSTOM method for any other HTTP verb.
 - **New! TypeScript support** for better type safety and autocompletion.

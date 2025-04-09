@@ -1,0 +1,332 @@
+---
+title: 👉 Request Methods
+description: A couple of methods are supported along with extra ones for more flexibility.
+---
+
+Z-fetch supports the common HTTP methods such as GET, POST, PUT, DELETE, and more.
+
+💡 And making one can be as easy as:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const getData = async () => {
+const result = await GET('https://api.example.com/data');
+
+// console.log(result.data);
+// console.log(result.error);
+// console.log(result.response);
+
+return result.data;
+}
+```
+
+## And Here is the full list of supported methods:
+
+- GET
+- POST
+- PUT
+- DELETE
+- PATCH
+- HEAD
+- OPTIONS
+- TRACE
+- CUSTOM
+
+<Callout title="Heads Up!" type="warn">
+    All method names are uppercase to match the HTTP verbs that these methods represent. This is only not so for when using an instance where then it's instance.method eg. api.get('url');
+</Callout>
+
+## Explanation
+
+1. Each request can be made separately or using an instance where it gets accessed as a property of that instance.
+2. Each request can take a URL and an optional options object.
+3. The options supports all native fetch options and some more z-fetch specific options.
+4. The Z-fetch specific options in this case are same as the [create instance options](/docs/create-instance-options) just with some few unsupported ones on per request level such as hooks.
+5. Each request returns a result object containing the response `data`, `error`, and the native `response` object if you need more control over the response.
+6. The request result also includes additional properties and methods for extra functionality such as refetching, canceling, and more.
+7. The separately used request or one used with an instance both take the same options and return the same result object.
+
+<Callout title="Dev Note" type="info">
+ Z-Fetch is 100% type safe, so expect some cool auto-completions from your IDE.
+</Callout>
+
+## Request Examples
+
+### GET Request
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const getPosts = async () => {
+  const { data, error, loading } = await GET('https://jsonplaceholder.typicode.com/posts');
+  if (data) {
+    console.log('Data:', data);
+  } else {
+    console.error('Error:', error.message);
+  }
+};
+```
+
+### POST Request
+
+```js
+import { POST } from '@z-fetch/fetch';
+
+const createPost = async () => {
+  const { data, error, loading } = await POST('https://jsonplaceholder.typicode.com/posts', {
+    body: {
+      title: 'dune',
+      body: 'a story about the dune verse!',
+      userId: 1,
+    },
+  });
+  if (data) {
+    console.log('Data:', data);
+  } else {
+    console.error('Error:', error.message);
+  }
+};
+```
+
+### PUT Request
+
+```js
+import { PUT } from '@z-fetch/fetch';
+
+const updatePost = async () => {
+  const { data, error, loading } = await PUT('https://jsonplaceholder.typicode.com/posts/1', {
+    body: {
+      title: 'dune latest',
+      body: 'a story about the dune verse has changed now the spices rule!',
+      userId: 1,
+    },
+  });
+  if (data) {
+    console.log('Data:', data);
+  } else {
+    console.error('Error:', error.message);
+  }
+};
+```
+
+### PATCH Request
+
+```js
+import { PATCH } from '@z-fetch/fetch';
+
+const modifyPost = async () => {
+  const { data, error, loading } = await PATCH('https://jsonplaceholder.typicode.com/posts/1', {
+    body: {
+      title: 'dune movie',
+    },
+  });
+  if (data) {
+    console.log('Data:', data);
+  } else {
+    console.error('Error:', error.message);
+  }
+};
+```
+
+### DELETE Request
+
+```js
+import { DELETE } from '@z-fetch/fetch';
+
+const deletePost = async () => {
+  const { error } = await DELETE('https://jsonplaceholder.typicode.com/posts/1');
+  if (!error) {
+    console.log('Item deleted successfully!');
+  } else {
+    console.error('Error Deleting Item:', error.message);
+  }
+};
+```
+
+### OPTIONS, TRACE, HEAD and CUSTOM Methods
+
+**OPTIONS Request**
+
+```js
+import { OPTIONS } from '@z-fetch/fetch';
+
+const optionsRequest = async () => {
+  const { data, error, loading } = await OPTIONS('https://jsonplaceholder.typicode.com/posts');
+  if (data) {
+    console.log('OPTIONS Data:', data);
+  } else {
+    console.error('Error:', error.message);
+  }
+};
+```
+
+**TRACE Request**
+
+```js
+import { TRACE } from '@z-fetch/fetch';
+
+const traceRequest = async () => {
+  const { data, error, loading } = await TRACE('https://jsonplaceholder.typicode.com/posts');
+  if (data) {
+    console.log('TRACE Data:', data);
+  } else {
+    console.error('Error:', error.message);
+  }
+};
+```
+
+**HEAD Request**
+
+```js
+import { HEAD } from '@z-fetch/fetch';
+
+const headRequest = async () => {
+  const { response, error, loading } = await HEAD('https://jsonplaceholder.typicode.com/posts');
+  if (response) {
+    console.log('HEAD Response Headers:', response.headers);
+  } else {
+    console.error('Error:', error.message);
+  }
+};
+```
+
+**CUSTOM Request**
+
+```js
+import { CUSTOM } from '@z-fetch/fetch';
+
+const customRequest = async () => {
+  // Example with a custom HTTP method like CONNECT or any other non-standard method.
+  const { data, error, loading } = await CUSTOM('https://jsonplaceholder.typicode.com/posts', 'CUSTOM', {
+    body: {
+      customData: 'example',
+    },
+  });
+  if (data) {
+    console.log('CUSTOM Data:', data);
+  } else {
+    console.error('Error:', error.message);
+  }
+};
+```
+
+## More Advanced Features
+
+Z-Fetch also exposes methods for polling, caching, request cancellation, and refetching:
+
+### Polling
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+let pageCount = 1;
+let pagesData = [];
+
+const getPosts = async () => {
+  const { data, error, loading, startPolling, stopPolling, onPollDataReceived } = await GET(`https://jsonplaceholder.typicode.com/posts?page=${pageCount}`);
+  if (data) {
+    pagesData.push({ page: pageCount, data });
+    pageCount++;
+  } else {
+    console.error('Error:', error.message);
+  }
+
+  if (pageCount < 100) {
+    startPolling(10000); // Poll every 10 seconds
+    onPollDataReceived((pollData) => {
+      pagesData.push({ page: pageCount, data: pollData });
+      pageCount++;
+    });
+  } else {
+    stopPolling();
+  }
+};
+```
+
+### Caching
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const getCachedPosts = async () => {
+  const { data, error, loading } = await GET('https://jsonplaceholder.typicode.com/posts', {
+    withCache: true,
+    revalidateCache: 60000, // Revalidate cache every 60 seconds
+  });
+  if (data) {
+    console.log('Cached Data:', data);
+  } else {
+    console.error('Caching Error:', error.message);
+  }
+};
+```
+
+### Request Cancelling
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const cancelButton = document.getElementById('cancelButton');
+
+const getPosts = async () => {
+  const { data, error, loading, cancelRequest } = await GET('https://jsonplaceholder.typicode.com/posts');
+  if (data) {
+    console.log('Data:', data);
+  } else {
+    console.error('Error:', error.message);
+  }
+};
+
+cancelButton.addEventListener('click', () => cancelRequest());
+```
+
+### Refetching
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+let reloadButton = document.getElementById('reloadButton');
+let itemsList = [];
+
+const getPosts = async () => {
+  const { data, error, loading, refetch } = await GET('https://jsonplaceholder.typicode.com/posts');
+  if (data) {
+    itemsList = data;
+  } else {
+    console.error('Error:', error.message);
+  }
+};
+
+reloadButton.addEventListener('click', () => refetch((newData) => {
+  itemsList = newData;
+}));
+```
+
+### Direct Use of Fetch Options
+
+You can use Z-Fetch as you would use the native fetch, with extra features:
+
+```js
+import { POST } from '@z-fetch/fetch';
+
+const createPost = async () => {
+  const { response } = await POST('https://jsonplaceholder.typicode.com/posts', {
+    body: JSON.stringify({
+      title: 'dune',
+      body: 'A family gets attacked and great houses do nothing about it!',
+      userId: 1,
+    }),
+    parseJson: false,
+    stringifyPayload: false,
+  });
+  const data = await response.json();
+  if (data) {
+    console.log('Data:', data);
+  } else {
+    console.error('Error:', response.error.message);
+  }
+};
+```
+
+🙋‍♂️ What else? Suggestions and feedback come in handy on the GitHub page. Please feel free to contribute or report any issues you encounter. This all was made by a human before vibe coding was a thing!
