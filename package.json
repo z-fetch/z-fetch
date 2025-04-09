@@ -1,6 +1,6 @@
 {
   "name": "@z-fetch/fetch",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "The pragmatic native fetch API wrapper for JavaScript.",
   "type": "module",
   "private": false,
@@ -16,11 +16,15 @@
   "bugs": {
     "url": "https://github.com/z-fetch/z-fetch/issues"
   },
-  "homepage": "https://github.com/z-fetch/z-fetch#readme",
+  "homepage": "https://z-fetch.github.io/z-fetch",
   "keywords": [
     "typescript",
     "vite",
-    "library"
+    "library",
+    "fetch",
+    "axios",
+    "fumadocs",
+    "tsup"
   ],
   "sideEffects": false,
   "files": [
