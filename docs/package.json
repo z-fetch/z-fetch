@@ -8,7 +8,7 @@
     "start": "next start",
     "postinstall": "fumadocs-mdx",
     "build:gh": "GITHUB_PAGES=true next build",
-    "deploy": "pnpm run build:gh && pnpm dlx gh-pages -d out"
+    "deploy": "pnpm run build:gh && pnpm dlx gh-pages -d out --nojekyll --cname www.mywebsite.com"
   },
   "dependencies": {
     "fumadocs-core": "15.2.5",
