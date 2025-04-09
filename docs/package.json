@@ -7,8 +7,8 @@
     "dev": "next dev --turbo",
     "start": "next start",
     "postinstall": "fumadocs-mdx",
-    "deploy": "gh-pages -d out",
-    "build:gh": "GITHUB_PAGES=true next build && pnpm run deploy"
+    "build:gh": "GITHUB_PAGES=true next build",
+    "deploy": "pnpm run build:gh && pnpm dlx gh-pages -d out"
   },
   "dependencies": {
     "fumadocs-core": "15.2.5",
