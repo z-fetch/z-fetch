@@ -177,26 +177,6 @@ async function request(
     });
   };
 
-  // Check cache for GET requests
-  const cacheKey = `${method}:${fullUrl}`;
-  if (config.withCache && method === "GET" && cache.has(cacheKey)) {
-    setTimeout(() => {
-      performRequest().then((newResult) => {
-        if (!newResult.error) {
-          cache.set(cacheKey, {
-            ...newResult,
-            refetch,
-            cancelRequest,
-            startPolling,
-            stopPolling,
-            onPollDataReceived,
-          });
-        }
-      });
-    }, config.revalidateCache);
-    return cache.get(cacheKey)!;
-  }
-
   const cancelRequest = (): void => {
     abortController.abort();
   };
@@ -249,6 +229,26 @@ async function request(
       }
     }, interval);
   };
+
+  // Check cache for GET requests
+  const cacheKey = `${method}:${fullUrl}`;
+  if (config.withCache && method === "GET" && cache.has(cacheKey)) {
+    setTimeout(() => {
+      performRequest().then((newResult) => {
+        if (!newResult.error) {
+          cache.set(cacheKey, {
+            ...newResult,
+            refetch,
+            cancelRequest,
+            startPolling,
+            stopPolling,
+            onPollDataReceived,
+          });
+        }
+      });
+    }, config.revalidateCache);
+    return cache.get(cacheKey)!;
+  }
 
   // Cache successful GET requests
   if (config.withCache && method === "GET" && !result.error) {
