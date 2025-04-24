@@ -66,6 +66,17 @@ async function request(url, method, options = { ...defaultConfig }) {
       return { loading, error, data, response: null };
     }
   };
+  const refetch = async (callback) => {
+    const newData = await performRequest();
+    return callback({
+      ...newData,
+      refetch,
+      cancelRequest,
+      startPolling,
+      stopPolling,
+      onPollDataReceived
+    });
+  };
   const cacheKey = `${method}:${fullUrl}`;
   if (config.withCache && method === "GET" && cache.has(cacheKey)) {
     setTimeout(() => {
@@ -84,17 +95,6 @@ async function request(url, method, options = { ...defaultConfig }) {
     }, config.revalidateCache);
     return cache.get(cacheKey);
   }
-  const refetch = async (callback) => {
-    const newData = await performRequest();
-    return callback({
-      ...newData,
-      refetch,
-      cancelRequest,
-      startPolling,
-      stopPolling,
-      onPollDataReceived
-    });
-  };
   const cancelRequest = () => {
     abortController.abort();
   };

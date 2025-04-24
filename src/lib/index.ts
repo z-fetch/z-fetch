@@ -163,6 +163,20 @@ async function request(
     }
   };
 
+  const refetch = async (
+    callback: (result: RequestResult) => void,
+  ): Promise<any> => {
+    const newData = await performRequest();
+    return callback({
+      ...newData,
+      refetch,
+      cancelRequest,
+      startPolling,
+      stopPolling,
+      onPollDataReceived,
+    });
+  };
+
   // Check cache for GET requests
   const cacheKey = `${method}:${fullUrl}`;
   if (config.withCache && method === "GET" && cache.has(cacheKey)) {
@@ -182,20 +196,6 @@ async function request(
     }, config.revalidateCache);
     return cache.get(cacheKey)!;
   }
-
-  const refetch = async (
-    callback: (result: RequestResult) => void,
-  ): Promise<any> => {
-    const newData = await performRequest();
-    return callback({
-      ...newData,
-      refetch,
-      cancelRequest,
-      startPolling,
-      stopPolling,
-      onPollDataReceived,
-    });
-  };
 
   const cancelRequest = (): void => {
     abortController.abort();
