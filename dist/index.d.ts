@@ -192,15 +192,15 @@ declare function CUSTOM(url: string, method: string, options?: RequestOptions): 
  * ```
  */
 declare function createInstance(instanceConfig?: Partial<Config>): {
-    get: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
-    post: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
-    put: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
-    delete: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
-    patch: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
-    options: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
-    trace: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
-    head: (url: string, options?: RequestOptions) => Promise<RequestResult | null>;
-    custom: (url: string, method: string, options?: RequestOptions) => Promise<RequestResult | null>;
+    get: (url: string, options?: RequestOptions) => Promise<RequestResult>;
+    post: (url: string, options?: RequestOptions) => Promise<RequestResult>;
+    put: (url: string, options?: RequestOptions) => Promise<RequestResult>;
+    delete: (url: string, options?: RequestOptions) => Promise<RequestResult>;
+    patch: (url: string, options?: RequestOptions) => Promise<RequestResult>;
+    options: (url: string, options?: RequestOptions) => Promise<RequestResult>;
+    trace: (url: string, options?: RequestOptions) => Promise<RequestResult>;
+    head: (url: string, options?: RequestOptions) => Promise<RequestResult>;
+    custom: (url: string, method: string, options?: RequestOptions) => Promise<RequestResult>;
     helpers: {
         getConfig: () => {
             baseUrl: string;

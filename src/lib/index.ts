@@ -476,7 +476,7 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
     method: METHODS,
     url: string,
     options: RequestOptions,
-  ): Promise<RequestResult | null> => {
+  ): Promise<RequestResult> => {
     let context: Context = {
       config: instanceConfigWithDefaults,
       request: {
@@ -525,7 +525,7 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
       }
     }
 
-    return context.result;
+    return context.result!;
   };
 
   const createMethod = (method: METHODS) => {

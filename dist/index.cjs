@@ -79,24 +79,6 @@ async function request(url, method, options = { ...defaultConfig }) {
       onPollDataReceived
     });
   };
-  const cacheKey = `${method}:${fullUrl}`;
-  if (config.withCache && method === "GET" && cache.has(cacheKey)) {
-    setTimeout(() => {
-      performRequest().then((newResult) => {
-        if (!newResult.error) {
-          cache.set(cacheKey, {
-            ...newResult,
-            refetch,
-            cancelRequest,
-            startPolling,
-            stopPolling,
-            onPollDataReceived
-          });
-        }
-      });
-    }, config.revalidateCache);
-    return cache.get(cacheKey);
-  }
   const cancelRequest = () => {
     abortController.abort();
   };
@@ -140,6 +122,24 @@ async function request(url, method, options = { ...defaultConfig }) {
       }
     }, interval);
   };
+  const cacheKey = `${method}:${fullUrl}`;
+  if (config.withCache && method === "GET" && cache.has(cacheKey)) {
+    setTimeout(() => {
+      performRequest().then((newResult) => {
+        if (!newResult.error) {
+          cache.set(cacheKey, {
+            ...newResult,
+            refetch,
+            cancelRequest,
+            startPolling,
+            stopPolling,
+            onPollDataReceived
+          });
+        }
+      });
+    }, config.revalidateCache);
+    return cache.get(cacheKey);
+  }
   if (config.withCache && method === "GET" && !result.error) {
     cache.set(cacheKey, {
       ...result,
