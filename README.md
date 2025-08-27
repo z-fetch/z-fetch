@@ -115,6 +115,68 @@ const createPost = async () => {
 
 👉 Visit the [docs](https://z-fetch.github.io/z-fetch/docs) for more examples on how to use and to explore full functionality.
 
+## 🔧 Recent Fixes & Enhancements
+
+### Bearer Token Support (Fixed Issue #3)
+Now you can pass `bearerToken` directly in request options:
+
+```js
+import { GET, POST } from '@z-fetch/fetch';
+
+// Pass bearer token in request options
+const result = await GET('/api/protected', {
+  bearerToken: 'your-token-here'
+});
+
+// Works with all HTTP methods
+const postResult = await POST('/api/data', {
+  body: { title: 'My Post' },
+  bearerToken: 'your-token-here'
+});
+```
+
+### Instance Configuration (Fixed Issue #4)  
+Instance options like `withCredentials` now work correctly:
+
+```js
+import { createInstance } from '@z-fetch/fetch';
+
+const api = createInstance({
+  baseUrl: 'https://api.example.com',
+  withCredentials: true,  // Now works properly!
+  headers: {
+    'Content-Type': 'application/json'
+  }
+});
+
+// All requests will include credentials
+const result = await api.get('/user-data');
+```
+
+### Error Mapping Configuration (New Feature - Issue #5)
+Configure custom error messages for different status codes:
+
+```js
+import { createInstance } from '@z-fetch/fetch';
+
+const api = createInstance({
+  baseUrl: 'https://api.example.com',
+  errorMapping: {
+    401: 'Authentication failed - please sign in again',
+    403: 'Access denied - insufficient permissions', 
+    404: 'Resource not found',
+    500: 'Server error - please try again later',
+    'fetch failed': 'Network connection failed - please check your internet'
+  }
+});
+
+// Errors will now show custom messages
+const result = await api.get('/protected');
+if (result.error) {
+  console.log(result.error.message); // "Authentication failed - please sign in again"
+}
+```
+
 ## 🌟 Contributing
 
 That’s it for now! More features will surely come, but this version of Z-Fetch already elevates fetching in your applications with enhanced flexibility and control.

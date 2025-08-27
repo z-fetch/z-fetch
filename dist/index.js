@@ -18,7 +18,8 @@ var defaultConfig = {
     "Content-Type": "application/json",
     Accept: "*/*"
   },
-  hooks: {}
+  hooks: {},
+  errorMapping: {}
 };
 var config = { ...defaultConfig };
 var cache = /* @__PURE__ */ new Map();
@@ -36,31 +37,79 @@ async function request(url, method, options = { ...defaultConfig }) {
     error = { message: "Request timed out!", status: "TIMEOUT" };
   }, config.timeout);
   const performRequest = async () => {
+    const mergedConfig = { ...config, ...options };
     try {
+      const headers = { ...config.headers, ...options.headers || {} };
+      if (mergedConfig.bearerToken && !headers["Authorization"]) {
+        headers["Authorization"] = `Bearer ${mergedConfig.bearerToken}`;
+      }
       let fetchOptions = {
         signal,
         method,
-        ...config,
-        ...options,
-        headers: { ...config.headers, ...options.headers || {} }
+        headers
       };
-      if (config.stringifyPayload && fetchOptions.body && typeof fetchOptions.body === "object") {
-        fetchOptions.body = JSON.stringify(fetchOptions.body);
+      if (mergedConfig.body !== void 0) {
+        if (typeof mergedConfig.body === "object" && mergedConfig.body !== null) {
+          fetchOptions.body = mergedConfig.stringifyPayload ? JSON.stringify(mergedConfig.body) : mergedConfig.body;
+        } else {
+          fetchOptions.body = mergedConfig.body;
+        }
       }
+      if (mergedConfig.cache !== void 0) fetchOptions.cache = mergedConfig.cache;
+      if (mergedConfig.credentials !== void 0) fetchOptions.credentials = mergedConfig.credentials;
+      if (mergedConfig.withCredentials) fetchOptions.credentials = "include";
+      if (mergedConfig.integrity !== void 0) fetchOptions.integrity = mergedConfig.integrity;
+      if (mergedConfig.keepalive !== void 0) fetchOptions.keepalive = mergedConfig.keepalive;
+      if (mergedConfig.mode !== void 0) fetchOptions.mode = mergedConfig.mode;
+      if (mergedConfig.redirect !== void 0) fetchOptions.redirect = mergedConfig.redirect;
+      if (mergedConfig.referrer !== void 0) fetchOptions.referrer = mergedConfig.referrer;
+      if (mergedConfig.referrerPolicy !== void 0) fetchOptions.referrerPolicy = mergedConfig.referrerPolicy;
+      if (mergedConfig.referrerPolicy !== void 0) fetchOptions.referrerPolicy = mergedConfig.referrerPolicy;
       if (options.baseUrl) {
         fullUrl = options.baseUrl + url;
       }
       const response = await fetch(fullUrl, fetchOptions);
       if (!response.ok) {
-        error = { message: response.statusText, status: response.status };
+        const originalMessage = response.statusText;
+        let mappedMessage = originalMessage;
+        if (mergedConfig.errorMapping) {
+          if (mergedConfig.errorMapping[response.status]) {
+            mappedMessage = mergedConfig.errorMapping[response.status];
+          } else {
+            for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
+              if (typeof pattern === "string") {
+                if (pattern === response.status.toString()) {
+                  mappedMessage = message;
+                  break;
+                }
+                if (originalMessage.toLowerCase().includes(pattern.toLowerCase()) || response.status.toString().includes(pattern)) {
+                  mappedMessage = message;
+                  break;
+                }
+              }
+            }
+          }
+        }
+        error = { message: mappedMessage, status: response.status };
       } else {
-        data = config.parseJson ? await response.json() : await response.text();
+        data = mergedConfig.parseJson ? await response.json() : await response.text();
       }
       clearTimeout(timeoutId);
       loading = false;
       return { loading, error, data, response };
     } catch (err) {
-      error = { message: err.message, status: "NETWORK_ERROR" };
+      let mappedMessage = err.message;
+      if (mergedConfig.errorMapping) {
+        for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
+          if (typeof pattern === "string") {
+            if (err.message.toLowerCase().includes(pattern.toLowerCase()) || pattern.toLowerCase() === "network_error" || pattern.toLowerCase() === "fetch failed") {
+              mappedMessage = message;
+              break;
+            }
+          }
+        }
+      }
+      error = { message: mappedMessage, status: "NETWORK_ERROR" };
       clearTimeout(timeoutId);
       loading = false;
       return { loading, error, data, response: null };
@@ -193,7 +242,11 @@ function createInstance(instanceConfig = {}) {
       request: {
         method,
         url,
-        options: { ...instanceConfigWithDefaults, ...options }
+        options: {
+          ...instanceConfigWithDefaults,
+          ...options,
+          headers: { ...instanceConfigWithDefaults.headers, ...options.headers || {} }
+        }
       },
       result: null
     };
@@ -204,7 +257,15 @@ function createInstance(instanceConfig = {}) {
         ...patch2,
         request: {
           ...original.request,
-          ...patch2.request
+          ...patch2.request,
+          options: {
+            ...original.request.options,
+            ...patch2.request?.options,
+            headers: {
+              ...original.request.options.headers,
+              ...patch2.request?.options?.headers || {}
+            }
+          }
         },
         result: patch2.result ?? original.result
       };

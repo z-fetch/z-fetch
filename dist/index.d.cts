@@ -34,6 +34,10 @@ type Config = {
         onRequest?: Hook;
         onResponse?: Hook;
     };
+    errorMapping?: {
+        [statusCode: number]: string;
+        [statusPattern: string]: string;
+    };
 };
 type RequestResult = {
     loading: boolean;
@@ -223,6 +227,10 @@ declare function createInstance(instanceConfig?: Partial<Config>): {
             hooks: {
                 onRequest?: Hook;
                 onResponse?: Hook;
+            };
+            errorMapping?: {
+                [statusCode: number]: string;
+                [statusPattern: string]: string;
             };
         };
         setBearerToken: (token: string) => void;

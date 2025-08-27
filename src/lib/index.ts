@@ -48,6 +48,10 @@ export type Config = {
     onRequest?: Hook;
     onResponse?: Hook;
   };
+  errorMapping?: {
+    [statusCode: number]: string;
+    [statusPattern: string]: string;
+  };
 };
 
 export type RequestResult = {
@@ -86,6 +90,7 @@ export const defaultConfig: Config = {
     Accept: "*/*",
   },
   hooks: {},
+  errorMapping: {},
 };
 
 let config: Config = { ...defaultConfig };
@@ -119,44 +124,104 @@ async function request(
     data: any;
     response: Response | null;
   }> => {
+    // Merge configuration properly
+    const mergedConfig = { ...config, ...options };
+    
     try {
-      let fetchOptions: any = {
+      // Handle bearerToken option - but don't override explicit Authorization header
+      const headers = { ...config.headers, ...(options.headers || {}) };
+      if (mergedConfig.bearerToken && !headers["Authorization"]) {
+        headers["Authorization"] = `Bearer ${mergedConfig.bearerToken}`;
+      }
+
+      // Only pass valid fetch options, excluding z-fetch specific config
+      let fetchOptions: RequestInit = {
         signal,
         method,
-        ...config,
-        ...options,
-        headers: { ...config.headers, ...(options.headers || {}) },
+        headers,
       };
 
-      // console.log('fetch options', fetchOptions);
-
-      if (
-        config.stringifyPayload &&
-        fetchOptions.body &&
-        typeof fetchOptions.body === "object"
-      ) {
-        fetchOptions.body = JSON.stringify(fetchOptions.body);
+      // Add valid fetch options from merged config
+      if (mergedConfig.body !== undefined) {
+        if (typeof mergedConfig.body === "object" && mergedConfig.body !== null) {
+          fetchOptions.body = mergedConfig.stringifyPayload ? JSON.stringify(mergedConfig.body) : mergedConfig.body as BodyInit;
+        } else {
+          fetchOptions.body = mergedConfig.body as BodyInit;
+        }
       }
+      if (mergedConfig.cache !== undefined) fetchOptions.cache = mergedConfig.cache;
+      if (mergedConfig.credentials !== undefined) fetchOptions.credentials = mergedConfig.credentials;
+      if (mergedConfig.withCredentials) fetchOptions.credentials = 'include';
+      if (mergedConfig.integrity !== undefined) fetchOptions.integrity = mergedConfig.integrity;
+      if (mergedConfig.keepalive !== undefined) fetchOptions.keepalive = mergedConfig.keepalive;
+      if (mergedConfig.mode !== undefined) fetchOptions.mode = mergedConfig.mode;
+      if (mergedConfig.redirect !== undefined) fetchOptions.redirect = mergedConfig.redirect;
+      if (mergedConfig.referrer !== undefined) fetchOptions.referrer = mergedConfig.referrer;
+      if (mergedConfig.referrerPolicy !== undefined) fetchOptions.referrerPolicy = mergedConfig.referrerPolicy;
+
+      if (mergedConfig.referrerPolicy !== undefined) fetchOptions.referrerPolicy = mergedConfig.referrerPolicy;
 
       if (options.baseUrl) {
         fullUrl = options.baseUrl + url;
       }
 
-      // console.log('log', fullUrl, fetchOptions);
-
       const response = await fetch(fullUrl, fetchOptions);
 
       if (!response.ok) {
-        error = { message: response.statusText, status: response.status };
+        const originalMessage = response.statusText;
+        let mappedMessage = originalMessage;
+        
+        // Apply error mapping if configured
+        if (mergedConfig.errorMapping) {
+          // Check for exact status code match
+          if (mergedConfig.errorMapping[response.status]) {
+            mappedMessage = mergedConfig.errorMapping[response.status];
+          } else {
+            // Check for pattern matches
+            for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
+              if (typeof pattern === 'string') {
+                // Check if status code matches pattern
+                if (pattern === response.status.toString()) {
+                  mappedMessage = message;
+                  break;
+                }
+                // Check if original message contains pattern (case insensitive)
+                if (originalMessage.toLowerCase().includes(pattern.toLowerCase()) ||
+                    response.status.toString().includes(pattern)) {
+                  mappedMessage = message;
+                  break;
+                }
+              }
+            }
+          }
+        }
+        
+        error = { message: mappedMessage, status: response.status };
       } else {
-        data = config.parseJson ? await response.json() : await response.text();
+        data = mergedConfig.parseJson ? await response.json() : await response.text();
       }
 
       clearTimeout(timeoutId);
       loading = false;
       return { loading, error, data, response };
     } catch (err: any) {
-      error = { message: err.message, status: "NETWORK_ERROR" };
+      let mappedMessage = err.message;
+      
+      // Apply error mapping for network errors if configured
+      if (mergedConfig.errorMapping) {
+        for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
+          if (typeof pattern === 'string') {
+            if (err.message.toLowerCase().includes(pattern.toLowerCase()) ||
+                pattern.toLowerCase() === 'network_error' ||
+                pattern.toLowerCase() === 'fetch failed') {
+              mappedMessage = message;
+              break;
+            }
+          }
+        }
+      }
+      
+      error = { message: mappedMessage, status: "NETWORK_ERROR" };
       clearTimeout(timeoutId);
       loading = false;
       return { loading, error, data, response: null };
@@ -482,7 +547,11 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
       request: {
         method,
         url,
-        options: { ...instanceConfigWithDefaults, ...options },
+        options: { 
+          ...instanceConfigWithDefaults, 
+          ...options,
+          headers: { ...instanceConfigWithDefaults.headers, ...(options.headers || {}) }
+        },
       },
       result: null,
     };
@@ -495,6 +564,14 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
         request: {
           ...original.request,
           ...patch.request,
+          options: {
+            ...original.request.options,
+            ...patch.request?.options,
+            headers: {
+              ...original.request.options.headers,
+              ...(patch.request?.options?.headers || {})
+            }
+          }
         },
         result: patch.result ?? original.result,
       } as Context;
