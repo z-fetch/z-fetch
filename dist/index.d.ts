@@ -11,6 +11,10 @@ type Context = {
         options: RequestOptions;
     };
     result: RequestResult | null;
+    error: {
+        message: string;
+        status: string | number;
+    } | null;
     setHeaders: (updater: (headers: {
         [key: string]: string;
     }) => {
@@ -20,6 +24,10 @@ type Context = {
     setOptions: (updater: (options: RequestOptions) => RequestOptions | void) => void;
     setUrl: (url: string) => void;
     setMethod: (method: METHODS) => void;
+    setError: (error: {
+        message: string;
+        status: string | number;
+    } | null) => void;
 };
 type Config = {
     baseUrl: string;
@@ -42,6 +50,7 @@ type Config = {
     hooks: {
         onRequest?: Hook;
         onResponse?: Hook;
+        onError?: Hook;
     };
     errorMapping?: {
         [statusCode: number]: string;
@@ -243,6 +252,7 @@ declare function createInstance(instanceConfig?: Partial<Config>): {
             hooks: {
                 onRequest?: Hook;
                 onResponse?: Hook;
+                onError?: Hook;
             };
             errorMapping?: {
                 [statusCode: number]: string;

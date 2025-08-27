@@ -26,12 +26,14 @@ export type Context = {
     options: RequestOptions;
   };
   result: RequestResult | null;
+  error: { message: string; status: string | number } | null;
   // Helper methods for easier manipulation
   setHeaders: (updater: (headers: { [key: string]: string }) => { [key: string]: string } | void) => void;
   setBody: (body: any) => void;
   setOptions: (updater: (options: RequestOptions) => RequestOptions | void) => void;
   setUrl: (url: string) => void;
   setMethod: (method: METHODS) => void;
+  setError: (error: { message: string; status: string | number } | null) => void;
 };
 
 export type Config = {
@@ -53,6 +55,7 @@ export type Config = {
   hooks: {
     onRequest?: Hook;
     onResponse?: Hook;
+    onError?: Hook;
   };
   errorMapping?: {
     [statusCode: number]: string;
@@ -118,6 +121,7 @@ async function requestWithProgress(
   url: string,
   method: METHODS,
   options: RequestOptions = { ...defaultConfig },
+  context?: { config: Config; onError?: Hook },
 ): Promise<{
   loading: boolean;
   error: { message: string; status: string | number } | null;
@@ -140,7 +144,36 @@ async function requestWithProgress(
       xhr.addEventListener('progress', mergedConfig.onDownloadProgress);
     }
     
-    xhr.addEventListener('loadend', () => {
+    const handleError = async (error: { message: string; status: string | number }) => {
+      if (context?.onError && context.config) {
+        const errorContext = {
+          config: context.config,
+          request: {
+            method,
+            url,
+            options: mergedConfig,
+          },
+          result: null,
+          error,
+          setHeaders: () => {},
+          setBody: () => {},
+          setOptions: () => {},
+          setUrl: () => {},
+          setMethod: () => {},
+          setError: (newError: { message: string; status: string | number } | null) => {
+            error = newError || error;
+          },
+        };
+        
+        const patch = await context.onError(errorContext);
+        if (patch?.error !== undefined) {
+          error = patch.error || error;
+        }
+      }
+      return error;
+    };
+    
+    xhr.addEventListener('loadend', async () => {
       let error: { message: string; status: string | number } | null = null;
       let data: any = null;
       let response: Response | null = null;
@@ -168,6 +201,7 @@ async function requestWithProgress(
           } as Response;
         } catch (err) {
           error = { message: 'Failed to parse response', status: 'PARSE_ERROR' };
+          error = await handleError(error);
         }
       } else {
         const originalMessage = xhr.statusText;
@@ -197,12 +231,13 @@ async function requestWithProgress(
         }
         
         error = { message: mappedMessage, status: xhr.status };
+        error = await handleError(error);
       }
       
       resolve({ loading: false, error, data, response });
     });
     
-    xhr.addEventListener('error', () => {
+    xhr.addEventListener('error', async () => {
       let mappedMessage = 'Network error';
       
       // Apply error mapping for network errors if configured
@@ -218,18 +253,26 @@ async function requestWithProgress(
         }
       }
       
+      let error: { message: string; status: string | number } = { message: mappedMessage, status: 'NETWORK_ERROR' };
+      const handledError = await handleError(error);
+      error = handledError || error;
+      
       resolve({ 
         loading: false, 
-        error: { message: mappedMessage, status: 'NETWORK_ERROR' }, 
+        error, 
         data: null, 
         response: null 
       });
     });
     
-    xhr.addEventListener('timeout', () => {
+    xhr.addEventListener('timeout', async () => {
+      let error: { message: string; status: string | number } = { message: 'Request timed out!', status: 'TIMEOUT' };
+      const handledError = await handleError(error);
+      error = handledError || error;
+      
       resolve({ 
         loading: false, 
-        error: { message: 'Request timed out!', status: 'TIMEOUT' }, 
+        error, 
         data: null, 
         response: null 
       });
@@ -304,8 +347,40 @@ async function request(
   }> => {
     // Use XMLHttpRequest if progress tracking is needed
     if (shouldUseXHR) {
-      return await requestWithProgress(url, method, options);
+      return await requestWithProgress(url, method, options, {
+        config: mergedConfig,
+        onError: mergedConfig.hooks?.onError,
+      });
     }
+    
+    const handleError = async (error: { message: string; status: string | number }) => {
+      if (mergedConfig.hooks?.onError) {
+        const errorContext = {
+          config: mergedConfig,
+          request: {
+            method,
+            url,
+            options: mergedConfig,
+          },
+          result: null,
+          error,
+          setHeaders: () => {},
+          setBody: () => {},
+          setOptions: () => {},
+          setUrl: () => {},
+          setMethod: () => {},
+          setError: (newError: { message: string; status: string | number } | null) => {
+            error = newError || error;
+          },
+        };
+        
+        const patch = await mergedConfig.hooks.onError(errorContext);
+        if (patch?.error !== undefined) {
+          error = patch.error || error;
+        }
+      }
+      return error;
+    };
     
     try {
       // Handle bearerToken option - but don't override explicit Authorization header
@@ -377,6 +452,7 @@ async function request(
         }
         
         error = { message: mappedMessage, status: response.status };
+        error = await handleError(error);
       } else {
         data = mergedConfig.parseJson ? await response.json() : await response.text();
       }
@@ -402,6 +478,7 @@ async function request(
       }
       
       error = { message: mappedMessage, status: "NETWORK_ERROR" };
+      error = await handleError(error);
       clearTimeout(timeoutId);
       loading = false;
       return { loading, error, data, response: null };
@@ -771,7 +848,7 @@ export function CUSTOM(
  */
 export function createInstance(instanceConfig: Partial<Config> = {}) {
   const instanceConfigWithDefaults = { ...defaultConfig, ...instanceConfig };
-  const { onRequest, onResponse } = instanceConfigWithDefaults.hooks || {};
+  const { onRequest, onResponse, onError } = instanceConfigWithDefaults.hooks || {};
 
   const interceptor = async (
     method: METHODS,
@@ -790,6 +867,7 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
         },
       },
       result: null,
+      error: null,
       // Helper methods for easier manipulation
       setHeaders: (updater: (headers: { [key: string]: string }) => { [key: string]: string } | void) => {
         const currentHeaders = context.request.options.headers || {};
@@ -813,6 +891,9 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
       setMethod: (method: METHODS) => {
         context.request.method = method;
       },
+      setError: (error: { message: string; status: string | number } | null) => {
+        context.error = error;
+      },
     };
 
     const applyPatch = (original: Context, patch?: DeepPartial<Context>) => {
@@ -833,12 +914,14 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
           }
         },
         result: patch.result ?? original.result,
+        error: patch.error ?? original.error,
         // Preserve helper methods
         setHeaders: original.setHeaders,
         setBody: original.setBody,
         setOptions: original.setOptions,
         setUrl: original.setUrl,
         setMethod: original.setMethod,
+        setError: original.setError,
       } as Context;
       
       // Update the helper methods to work with the new context
@@ -864,6 +947,9 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
       updated.setMethod = (method: METHODS) => {
         updated.request.method = method;
       };
+      updated.setError = (error: { message: string; status: string | number } | null) => {
+        updated.error = error;
+      };
       
       return updated;
     };
@@ -881,7 +967,7 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
     const result = await request(
       context.request.url,
       context.request.method,
-      context.request.options,
+      { ...context.request.options, hooks: { onError } },
     );
 
     context.result = result;
