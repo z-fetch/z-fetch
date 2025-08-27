@@ -47,6 +47,9 @@ type Config = {
         [statusCode: number]: string;
         [statusPattern: string]: string;
     };
+    onUploadProgress?: (event: ProgressEvent) => void;
+    onDownloadProgress?: (event: ProgressEvent) => void;
+    useXHRForProgress?: boolean;
 };
 type RequestResult = {
     loading: boolean;
@@ -61,6 +64,10 @@ type RequestResult = {
     startPolling: (interval?: number) => void;
     stopPolling: () => void;
     onPollDataReceived: (callback: (result: RequestResult) => void) => void;
+    streamToString?: () => Promise<string>;
+    streamToBlob?: () => Promise<Blob>;
+    streamToArrayBuffer?: () => Promise<ArrayBuffer>;
+    streamChunks?: (callback: (chunk: Uint8Array) => void) => Promise<void>;
 };
 type RequestOptions = Omit<RequestInit, "body"> & {
     body?: BodyInit | object | null;
@@ -241,6 +248,9 @@ declare function createInstance(instanceConfig?: Partial<Config>): {
                 [statusCode: number]: string;
                 [statusPattern: string]: string;
             };
+            onUploadProgress?: (event: ProgressEvent) => void;
+            onDownloadProgress?: (event: ProgressEvent) => void;
+            useXHRForProgress?: boolean;
         };
         setBearerToken: (token: string) => void;
     };

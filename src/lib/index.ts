@@ -58,6 +58,10 @@ export type Config = {
     [statusCode: number]: string;
     [statusPattern: string]: string;
   };
+  // Progress tracking options
+  onUploadProgress?: (event: ProgressEvent) => void;
+  onDownloadProgress?: (event: ProgressEvent) => void;
+  useXHRForProgress?: boolean; // Force XMLHttpRequest when progress callbacks are provided
 };
 
 export type RequestResult = {
@@ -70,6 +74,11 @@ export type RequestResult = {
   startPolling: (interval?: number) => void;
   stopPolling: () => void;
   onPollDataReceived: (callback: (result: RequestResult) => void) => void;
+  // Streaming utilities
+  streamToString?: () => Promise<string>;
+  streamToBlob?: () => Promise<Blob>;
+  streamToArrayBuffer?: () => Promise<ArrayBuffer>;
+  streamChunks?: (callback: (chunk: Uint8Array) => void) => Promise<void>;
 };
 
 export type RequestOptions = Omit<RequestInit, "body"> & {
@@ -97,11 +106,167 @@ export const defaultConfig: Config = {
   },
   hooks: {},
   errorMapping: {},
+  useXHRForProgress: false,
 };
 
 let config: Config = { ...defaultConfig };
 
 const cache: Map<string, RequestResult> = new Map();
+
+// XMLHttpRequest-based request for progress tracking
+async function requestWithProgress(
+  url: string,
+  method: METHODS,
+  options: RequestOptions = { ...defaultConfig },
+): Promise<{
+  loading: boolean;
+  error: { message: string; status: string | number } | null;
+  data: any;
+  response: Response | null;
+}> {
+  return new Promise((resolve) => {
+    const mergedConfig = { ...config, ...options };
+    let fullUrl = mergedConfig.baseUrl ? mergedConfig.baseUrl + url : url;
+    
+    const xhr = new XMLHttpRequest();
+    
+    // Setup upload progress tracking
+    if (mergedConfig.onUploadProgress && xhr.upload) {
+      xhr.upload.addEventListener('progress', mergedConfig.onUploadProgress);
+    }
+    
+    // Setup download progress tracking
+    if (mergedConfig.onDownloadProgress) {
+      xhr.addEventListener('progress', mergedConfig.onDownloadProgress);
+    }
+    
+    xhr.addEventListener('loadend', () => {
+      let error: { message: string; status: string | number } | null = null;
+      let data: any = null;
+      let response: Response | null = null;
+      
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          data = mergedConfig.parseJson ? JSON.parse(xhr.responseText) : xhr.responseText;
+          // Create a mock Response object for compatibility
+          response = {
+            ok: true,
+            status: xhr.status,
+            statusText: xhr.statusText,
+            url: fullUrl,
+            headers: new Headers(),
+            json: async () => mergedConfig.parseJson ? JSON.parse(xhr.responseText) : xhr.responseText,
+            text: async () => xhr.responseText,
+            blob: async () => new Blob([xhr.response]),
+            arrayBuffer: async () => xhr.response,
+            formData: async () => new FormData(),
+            body: null,
+            bodyUsed: false,
+            clone: function() { return this; },
+            type: 'basic',
+            redirected: false
+          } as Response;
+        } catch (err) {
+          error = { message: 'Failed to parse response', status: 'PARSE_ERROR' };
+        }
+      } else {
+        const originalMessage = xhr.statusText;
+        let mappedMessage = originalMessage;
+        
+        // Apply error mapping if configured
+        if (mergedConfig.errorMapping) {
+          // Check for exact status code match
+          if (mergedConfig.errorMapping[xhr.status]) {
+            mappedMessage = mergedConfig.errorMapping[xhr.status];
+          } else {
+            // Check for pattern matches
+            for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
+              if (typeof pattern === 'string') {
+                if (pattern === xhr.status.toString()) {
+                  mappedMessage = message;
+                  break;
+                }
+                if (originalMessage.toLowerCase().includes(pattern.toLowerCase()) ||
+                    xhr.status.toString().includes(pattern)) {
+                  mappedMessage = message;
+                  break;
+                }
+              }
+            }
+          }
+        }
+        
+        error = { message: mappedMessage, status: xhr.status };
+      }
+      
+      resolve({ loading: false, error, data, response });
+    });
+    
+    xhr.addEventListener('error', () => {
+      let mappedMessage = 'Network error';
+      
+      // Apply error mapping for network errors if configured
+      if (mergedConfig.errorMapping) {
+        for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
+          if (typeof pattern === 'string') {
+            if (pattern.toLowerCase() === 'network_error' ||
+                pattern.toLowerCase() === 'fetch failed') {
+              mappedMessage = message;
+              break;
+            }
+          }
+        }
+      }
+      
+      resolve({ 
+        loading: false, 
+        error: { message: mappedMessage, status: 'NETWORK_ERROR' }, 
+        data: null, 
+        response: null 
+      });
+    });
+    
+    xhr.addEventListener('timeout', () => {
+      resolve({ 
+        loading: false, 
+        error: { message: 'Request timed out!', status: 'TIMEOUT' }, 
+        data: null, 
+        response: null 
+      });
+    });
+    
+    // Setup the request
+    xhr.open(method, fullUrl);
+    xhr.timeout = mergedConfig.timeout;
+    
+    // Set headers
+    const headers = { ...config.headers, ...(options.headers || {}) };
+    if (mergedConfig.bearerToken && !headers["Authorization"]) {
+      headers["Authorization"] = `Bearer ${mergedConfig.bearerToken}`;
+    }
+    
+    Object.entries(headers).forEach(([key, value]) => {
+      xhr.setRequestHeader(key, String(value));
+    });
+    
+    // Set credentials
+    if (mergedConfig.withCredentials) {
+      xhr.withCredentials = true;
+    }
+    
+    // Send the request
+    let body: any = null;
+    if (mergedConfig.body !== undefined) {
+      if (typeof mergedConfig.body === "object" && mergedConfig.body !== null) {
+        body = mergedConfig.stringifyPayload ? JSON.stringify(mergedConfig.body) : mergedConfig.body;
+      } else {
+        body = mergedConfig.body;
+      }
+    }
+    
+    xhr.send(body);
+  });
+}
 
 async function request(
   url: string,
@@ -116,13 +281,20 @@ async function request(
   let data: any = null;
   let retryCount = 0;
 
-  let fullUrl = config.baseUrl ? config.baseUrl + url : url;
+  // Merge configuration properly
+  const mergedConfig = { ...config, ...options };
+  let fullUrl = mergedConfig.baseUrl ? mergedConfig.baseUrl + url : url;
+
+  // Check if we should use XMLHttpRequest for progress tracking
+  const shouldUseXHR = mergedConfig.useXHRForProgress || 
+                       mergedConfig.onUploadProgress || 
+                       mergedConfig.onDownloadProgress;
 
   const timeoutId = setTimeout(() => {
     abortController.abort();
     loading = true;
     error = { message: "Request timed out!", status: "TIMEOUT" };
-  }, config.timeout);
+  }, mergedConfig.timeout);
 
   const performRequest = async (): Promise<{
     loading: boolean;
@@ -130,8 +302,10 @@ async function request(
     data: any;
     response: Response | null;
   }> => {
-    // Merge configuration properly
-    const mergedConfig = { ...config, ...options };
+    // Use XMLHttpRequest if progress tracking is needed
+    if (shouldUseXHR) {
+      return await requestWithProgress(url, method, options);
+    }
     
     try {
       // Handle bearerToken option - but don't override explicit Authorization header
@@ -301,6 +475,54 @@ async function request(
     }, interval);
   };
 
+  // Streaming utility functions
+  const streamToString = async (): Promise<string> => {
+    if (!result.response) {
+      throw new Error('No response available for streaming');
+    }
+    if (!result.response.body && typeof result.response.text !== 'function') {
+      throw new Error('No response body available for streaming');
+    }
+    return await result.response.text();
+  };
+
+  const streamToBlob = async (): Promise<Blob> => {
+    if (!result.response) {
+      throw new Error('No response available for streaming');
+    }
+    if (!result.response.body && typeof result.response.blob !== 'function') {
+      throw new Error('No response body available for streaming');
+    }
+    return await result.response.blob();
+  };
+
+  const streamToArrayBuffer = async (): Promise<ArrayBuffer> => {
+    if (!result.response) {
+      throw new Error('No response available for streaming');
+    }
+    if (!result.response.body && typeof result.response.arrayBuffer !== 'function') {
+      throw new Error('No response body available for streaming');
+    }
+    return await result.response.arrayBuffer();
+  };
+
+  const streamChunks = async (callback: (chunk: Uint8Array) => void): Promise<void> => {
+    if (!result.response || !result.response.body) {
+      throw new Error('No response body available for streaming');
+    }
+    
+    const reader = result.response.body.getReader();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        callback(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  };
+
   // Check cache for GET requests
   const cacheKey = `${method}:${fullUrl}`;
   if (config.withCache && method === "GET" && cache.has(cacheKey)) {
@@ -330,6 +552,10 @@ async function request(
       startPolling,
       stopPolling,
       onPollDataReceived,
+      streamToString,
+      streamToBlob,
+      streamToArrayBuffer,
+      streamChunks,
     });
   }
 
@@ -340,6 +566,10 @@ async function request(
     startPolling,
     stopPolling,
     onPollDataReceived,
+    streamToString,
+    streamToBlob,
+    streamToArrayBuffer,
+    streamChunks,
   };
 }
 

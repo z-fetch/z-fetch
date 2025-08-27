@@ -19,10 +19,126 @@ var defaultConfig = {
     Accept: "*/*"
   },
   hooks: {},
-  errorMapping: {}
+  errorMapping: {},
+  useXHRForProgress: false
 };
 var config = { ...defaultConfig };
 var cache = /* @__PURE__ */ new Map();
+async function requestWithProgress(url, method, options = { ...defaultConfig }) {
+  return new Promise((resolve) => {
+    const mergedConfig = { ...config, ...options };
+    let fullUrl = mergedConfig.baseUrl ? mergedConfig.baseUrl + url : url;
+    const xhr = new XMLHttpRequest();
+    if (mergedConfig.onUploadProgress && xhr.upload) {
+      xhr.upload.addEventListener("progress", mergedConfig.onUploadProgress);
+    }
+    if (mergedConfig.onDownloadProgress) {
+      xhr.addEventListener("progress", mergedConfig.onDownloadProgress);
+    }
+    xhr.addEventListener("loadend", () => {
+      let error = null;
+      let data = null;
+      let response = null;
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          data = mergedConfig.parseJson ? JSON.parse(xhr.responseText) : xhr.responseText;
+          response = {
+            ok: true,
+            status: xhr.status,
+            statusText: xhr.statusText,
+            url: fullUrl,
+            headers: new Headers(),
+            json: async () => mergedConfig.parseJson ? JSON.parse(xhr.responseText) : xhr.responseText,
+            text: async () => xhr.responseText,
+            blob: async () => new Blob([xhr.response]),
+            arrayBuffer: async () => xhr.response,
+            formData: async () => new FormData(),
+            body: null,
+            bodyUsed: false,
+            clone: function() {
+              return this;
+            },
+            type: "basic",
+            redirected: false
+          };
+        } catch (err) {
+          error = { message: "Failed to parse response", status: "PARSE_ERROR" };
+        }
+      } else {
+        const originalMessage = xhr.statusText;
+        let mappedMessage = originalMessage;
+        if (mergedConfig.errorMapping) {
+          if (mergedConfig.errorMapping[xhr.status]) {
+            mappedMessage = mergedConfig.errorMapping[xhr.status];
+          } else {
+            for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
+              if (typeof pattern === "string") {
+                if (pattern === xhr.status.toString()) {
+                  mappedMessage = message;
+                  break;
+                }
+                if (originalMessage.toLowerCase().includes(pattern.toLowerCase()) || xhr.status.toString().includes(pattern)) {
+                  mappedMessage = message;
+                  break;
+                }
+              }
+            }
+          }
+        }
+        error = { message: mappedMessage, status: xhr.status };
+      }
+      resolve({ loading: false, error, data, response });
+    });
+    xhr.addEventListener("error", () => {
+      let mappedMessage = "Network error";
+      if (mergedConfig.errorMapping) {
+        for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
+          if (typeof pattern === "string") {
+            if (pattern.toLowerCase() === "network_error" || pattern.toLowerCase() === "fetch failed") {
+              mappedMessage = message;
+              break;
+            }
+          }
+        }
+      }
+      resolve({
+        loading: false,
+        error: { message: mappedMessage, status: "NETWORK_ERROR" },
+        data: null,
+        response: null
+      });
+    });
+    xhr.addEventListener("timeout", () => {
+      resolve({
+        loading: false,
+        error: { message: "Request timed out!", status: "TIMEOUT" },
+        data: null,
+        response: null
+      });
+    });
+    xhr.open(method, fullUrl);
+    xhr.timeout = mergedConfig.timeout;
+    const headers = { ...config.headers, ...options.headers || {} };
+    if (mergedConfig.bearerToken && !headers["Authorization"]) {
+      headers["Authorization"] = `Bearer ${mergedConfig.bearerToken}`;
+    }
+    Object.entries(headers).forEach(([key, value]) => {
+      xhr.setRequestHeader(key, String(value));
+    });
+    if (mergedConfig.withCredentials) {
+      xhr.withCredentials = true;
+    }
+    let body = null;
+    if (mergedConfig.body !== void 0) {
+      if (typeof mergedConfig.body === "object" && mergedConfig.body !== null) {
+        body = mergedConfig.stringifyPayload ? JSON.stringify(mergedConfig.body) : mergedConfig.body;
+      } else {
+        body = mergedConfig.body;
+      }
+    }
+    xhr.send(body);
+  });
+}
 async function request(url, method, options = { ...defaultConfig }) {
   const abortController = new AbortController();
   const { signal } = abortController;
@@ -30,14 +146,18 @@ async function request(url, method, options = { ...defaultConfig }) {
   let error = null;
   let data = null;
   let retryCount = 0;
-  let fullUrl = config.baseUrl ? config.baseUrl + url : url;
+  const mergedConfig = { ...config, ...options };
+  let fullUrl = mergedConfig.baseUrl ? mergedConfig.baseUrl + url : url;
+  const shouldUseXHR = mergedConfig.useXHRForProgress || mergedConfig.onUploadProgress || mergedConfig.onDownloadProgress;
   const timeoutId = setTimeout(() => {
     abortController.abort();
     loading = true;
     error = { message: "Request timed out!", status: "TIMEOUT" };
-  }, config.timeout);
+  }, mergedConfig.timeout);
   const performRequest = async () => {
-    const mergedConfig = { ...config, ...options };
+    if (shouldUseXHR) {
+      return await requestWithProgress(url, method, options);
+    }
     try {
       const headers = { ...config.headers, ...options.headers || {} };
       if (mergedConfig.bearerToken && !headers["Authorization"]) {
@@ -169,6 +289,48 @@ async function request(url, method, options = { ...defaultConfig }) {
       }
     }, interval);
   };
+  const streamToString = async () => {
+    if (!result.response) {
+      throw new Error("No response available for streaming");
+    }
+    if (!result.response.body && typeof result.response.text !== "function") {
+      throw new Error("No response body available for streaming");
+    }
+    return await result.response.text();
+  };
+  const streamToBlob = async () => {
+    if (!result.response) {
+      throw new Error("No response available for streaming");
+    }
+    if (!result.response.body && typeof result.response.blob !== "function") {
+      throw new Error("No response body available for streaming");
+    }
+    return await result.response.blob();
+  };
+  const streamToArrayBuffer = async () => {
+    if (!result.response) {
+      throw new Error("No response available for streaming");
+    }
+    if (!result.response.body && typeof result.response.arrayBuffer !== "function") {
+      throw new Error("No response body available for streaming");
+    }
+    return await result.response.arrayBuffer();
+  };
+  const streamChunks = async (callback) => {
+    if (!result.response || !result.response.body) {
+      throw new Error("No response body available for streaming");
+    }
+    const reader = result.response.body.getReader();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        callback(value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  };
   const cacheKey = `${method}:${fullUrl}`;
   if (config.withCache && method === "GET" && cache.has(cacheKey)) {
     setTimeout(() => {
@@ -194,7 +356,11 @@ async function request(url, method, options = { ...defaultConfig }) {
       cancelRequest,
       startPolling,
       stopPolling,
-      onPollDataReceived
+      onPollDataReceived,
+      streamToString,
+      streamToBlob,
+      streamToArrayBuffer,
+      streamChunks
     });
   }
   return {
@@ -203,7 +369,11 @@ async function request(url, method, options = { ...defaultConfig }) {
     cancelRequest,
     startPolling,
     stopPolling,
-    onPollDataReceived
+    onPollDataReceived,
+    streamToString,
+    streamToBlob,
+    streamToArrayBuffer,
+    streamChunks
   };
 }
 function GET(url, options) {
