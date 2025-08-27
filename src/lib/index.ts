@@ -15,8 +15,8 @@ type DeepPartial<T> = {
 };
 
 export type Hook = (
-  context: Readonly<Context>,
-) => Promise<DeepPartial<Context>> | void;
+  context: Context,
+) => Promise<DeepPartial<Context> | void> | DeepPartial<Context> | void;
 
 export type Context = {
   config: Config;
@@ -26,6 +26,12 @@ export type Context = {
     options: RequestOptions;
   };
   result: RequestResult | null;
+  // Helper methods for easier manipulation
+  setHeaders: (updater: (headers: { [key: string]: string }) => { [key: string]: string } | void) => void;
+  setBody: (body: any) => void;
+  setOptions: (updater: (options: RequestOptions) => RequestOptions | void) => void;
+  setUrl: (url: string) => void;
+  setMethod: (method: METHODS) => void;
 };
 
 export type Config = {
@@ -554,11 +560,34 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
         },
       },
       result: null,
+      // Helper methods for easier manipulation
+      setHeaders: (updater: (headers: { [key: string]: string }) => { [key: string]: string } | void) => {
+        const currentHeaders = context.request.options.headers || {};
+        const result = updater(currentHeaders);
+        if (result) {
+          context.request.options.headers = result;
+        }
+      },
+      setBody: (body: any) => {
+        context.request.options.body = body;
+      },
+      setOptions: (updater: (options: RequestOptions) => RequestOptions | void) => {
+        const result = updater(context.request.options);
+        if (result) {
+          context.request.options = result;
+        }
+      },
+      setUrl: (url: string) => {
+        context.request.url = url;
+      },
+      setMethod: (method: METHODS) => {
+        context.request.method = method;
+      },
     };
 
     const applyPatch = (original: Context, patch?: DeepPartial<Context>) => {
       if (!patch) return original;
-      return {
+      const updated = {
         ...original,
         ...patch,
         request: {
@@ -574,7 +603,39 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
           }
         },
         result: patch.result ?? original.result,
+        // Preserve helper methods
+        setHeaders: original.setHeaders,
+        setBody: original.setBody,
+        setOptions: original.setOptions,
+        setUrl: original.setUrl,
+        setMethod: original.setMethod,
       } as Context;
+      
+      // Update the helper methods to work with the new context
+      updated.setHeaders = (updater: (headers: { [key: string]: string }) => { [key: string]: string } | void) => {
+        const currentHeaders = updated.request.options.headers || {};
+        const result = updater(currentHeaders);
+        if (result) {
+          updated.request.options.headers = result;
+        }
+      };
+      updated.setBody = (body: any) => {
+        updated.request.options.body = body;
+      };
+      updated.setOptions = (updater: (options: RequestOptions) => RequestOptions | void) => {
+        const result = updater(updated.request.options);
+        if (result) {
+          updated.request.options = result;
+        }
+      };
+      updated.setUrl = (url: string) => {
+        updated.request.url = url;
+      };
+      updated.setMethod = (method: METHODS) => {
+        updated.request.method = method;
+      };
+      
+      return updated;
     };
 
     // console.log('context log before::', context.request.options);

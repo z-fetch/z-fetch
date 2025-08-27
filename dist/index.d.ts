@@ -2,7 +2,7 @@ type METHODS = "GET" | "POST" | "PUT" | "DELETE" | "PATCH" | "OPTIONS" | "TRACE"
 type DeepPartial<T> = {
     [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
-type Hook = (context: Readonly<Context>) => Promise<DeepPartial<Context>> | void;
+type Hook = (context: Context) => Promise<DeepPartial<Context> | void> | DeepPartial<Context> | void;
 type Context = {
     config: Config;
     request: {
@@ -11,6 +11,15 @@ type Context = {
         options: RequestOptions;
     };
     result: RequestResult | null;
+    setHeaders: (updater: (headers: {
+        [key: string]: string;
+    }) => {
+        [key: string]: string;
+    } | void) => void;
+    setBody: (body: any) => void;
+    setOptions: (updater: (options: RequestOptions) => RequestOptions | void) => void;
+    setUrl: (url: string) => void;
+    setMethod: (method: METHODS) => void;
 };
 type Config = {
     baseUrl: string;

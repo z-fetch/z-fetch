@@ -250,11 +250,34 @@ function createInstance(instanceConfig = {}) {
           headers: { ...instanceConfigWithDefaults.headers, ...options.headers || {} }
         }
       },
-      result: null
+      result: null,
+      // Helper methods for easier manipulation
+      setHeaders: (updater) => {
+        const currentHeaders = context.request.options.headers || {};
+        const result2 = updater(currentHeaders);
+        if (result2) {
+          context.request.options.headers = result2;
+        }
+      },
+      setBody: (body) => {
+        context.request.options.body = body;
+      },
+      setOptions: (updater) => {
+        const result2 = updater(context.request.options);
+        if (result2) {
+          context.request.options = result2;
+        }
+      },
+      setUrl: (url2) => {
+        context.request.url = url2;
+      },
+      setMethod: (method2) => {
+        context.request.method = method2;
+      }
     };
     const applyPatch = (original, patch2) => {
       if (!patch2) return original;
-      return {
+      const updated = {
         ...original,
         ...patch2,
         request: {
@@ -269,8 +292,37 @@ function createInstance(instanceConfig = {}) {
             }
           }
         },
-        result: patch2.result ?? original.result
+        result: patch2.result ?? original.result,
+        // Preserve helper methods
+        setHeaders: original.setHeaders,
+        setBody: original.setBody,
+        setOptions: original.setOptions,
+        setUrl: original.setUrl,
+        setMethod: original.setMethod
       };
+      updated.setHeaders = (updater) => {
+        const currentHeaders = updated.request.options.headers || {};
+        const result2 = updater(currentHeaders);
+        if (result2) {
+          updated.request.options.headers = result2;
+        }
+      };
+      updated.setBody = (body) => {
+        updated.request.options.body = body;
+      };
+      updated.setOptions = (updater) => {
+        const result2 = updater(updated.request.options);
+        if (result2) {
+          updated.request.options = result2;
+        }
+      };
+      updated.setUrl = (url2) => {
+        updated.request.url = url2;
+      };
+      updated.setMethod = (method2) => {
+        updated.request.method = method2;
+      };
+      return updated;
     };
     if (onRequest) {
       const patch2 = await onRequest(context);
