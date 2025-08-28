@@ -39,7 +39,7 @@ export function createMockFetch(mockResponse: any = { id: 1, title: 'test' }) {
       headers: new Headers(),
       body: null,
       bodyUsed: false,
-      clone: () => mockFetch(url, options),
+      clone: function() { return this; },
       formData: async () => new FormData(),
       arrayBuffer: async () => new ArrayBuffer(0),
       blob: async () => new Blob()

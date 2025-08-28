@@ -454,7 +454,9 @@ async function request(
         error = { message: mappedMessage, status: response.status };
         error = await handleError(error);
       } else {
-        data = mergedConfig.parseJson ? await response.json() : await response.text();
+        // Clone response for data extraction to preserve body for streaming utilities
+        const responseForData = response.clone();
+        data = mergedConfig.parseJson ? await responseForData.json() : await responseForData.text();
       }
 
       clearTimeout(timeoutId);
@@ -557,30 +559,42 @@ async function request(
     if (!result.response) {
       throw new Error('No response available for streaming');
     }
-    if (!result.response.body && typeof result.response.text !== 'function') {
+    if (typeof result.response.text !== 'function') {
       throw new Error('No response body available for streaming');
     }
-    return await result.response.text();
+    try {
+      return await result.response.text();
+    } catch (error) {
+      throw new Error('Failed to read response as text');
+    }
   };
 
   const streamToBlob = async (): Promise<Blob> => {
     if (!result.response) {
       throw new Error('No response available for streaming');
     }
-    if (!result.response.body && typeof result.response.blob !== 'function') {
+    if (typeof result.response.blob !== 'function') {
       throw new Error('No response body available for streaming');
     }
-    return await result.response.blob();
+    try {
+      return await result.response.blob();
+    } catch (error) {
+      throw new Error('Failed to read response as blob');
+    }
   };
 
   const streamToArrayBuffer = async (): Promise<ArrayBuffer> => {
     if (!result.response) {
       throw new Error('No response available for streaming');
     }
-    if (!result.response.body && typeof result.response.arrayBuffer !== 'function') {
+    if (typeof result.response.arrayBuffer !== 'function') {
       throw new Error('No response body available for streaming');
     }
-    return await result.response.arrayBuffer();
+    try {
+      return await result.response.arrayBuffer();
+    } catch (error) {
+      throw new Error('Failed to read response as array buffer');
+    }
   };
 
   const streamChunks = async (callback: (chunk: Uint8Array) => void): Promise<void> => {
@@ -588,15 +602,19 @@ async function request(
       throw new Error('No response body available for streaming');
     }
     
-    const reader = result.response.body.getReader();
     try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        callback(value);
+      const reader = result.response.body.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          callback(value);
+        }
+      } finally {
+        reader.releaseLock();
       }
-    } finally {
-      reader.releaseLock();
+    } catch (error) {
+      throw new Error('Failed to read response stream');
     }
   };
 
