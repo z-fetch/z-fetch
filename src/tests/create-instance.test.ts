@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { createInstance } from "../lib/index";
 import { setupMockFetch } from "./mock-helpers";
 
@@ -43,8 +43,8 @@ beforeEach(() => {
   mockSetup = setupMockFetch({
     id: 1,
     title: "test post",
-    body: "test body", 
-    userId: 1
+    body: "test body",
+    userId: 1,
   });
 });
 

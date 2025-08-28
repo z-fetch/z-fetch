@@ -93,8 +93,11 @@ async function requestWithProgress(url, method, options = { ...defaultConfig }, 
             type: "basic",
             redirected: false
           };
-        } catch (err) {
-          error = { message: "Failed to parse response", status: "PARSE_ERROR" };
+        } catch {
+          error = {
+            message: "Failed to parse response",
+            status: "PARSE_ERROR"
+          };
           error = await handleError(error);
         }
       } else {
@@ -104,7 +107,9 @@ async function requestWithProgress(url, method, options = { ...defaultConfig }, 
           if (mergedConfig.errorMapping[xhr.status]) {
             mappedMessage = mergedConfig.errorMapping[xhr.status];
           } else {
-            for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
+            for (const [pattern, message] of Object.entries(
+              mergedConfig.errorMapping
+            )) {
               if (typeof pattern === "string") {
                 if (pattern === xhr.status.toString()) {
                   mappedMessage = message;
@@ -126,7 +131,9 @@ async function requestWithProgress(url, method, options = { ...defaultConfig }, 
     xhr.addEventListener("error", async () => {
       let mappedMessage = "Network error";
       if (mergedConfig.errorMapping) {
-        for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
+        for (const [pattern, message] of Object.entries(
+          mergedConfig.errorMapping
+        )) {
           if (typeof pattern === "string") {
             if (pattern.toLowerCase() === "network_error" || pattern.toLowerCase() === "fetch failed") {
               mappedMessage = message;
@@ -135,7 +142,10 @@ async function requestWithProgress(url, method, options = { ...defaultConfig }, 
           }
         }
       }
-      let error = { message: mappedMessage, status: "NETWORK_ERROR" };
+      let error = {
+        message: mappedMessage,
+        status: "NETWORK_ERROR"
+      };
       const handledError = await handleError(error);
       error = handledError || error;
       resolve({
@@ -146,7 +156,10 @@ async function requestWithProgress(url, method, options = { ...defaultConfig }, 
       });
     });
     xhr.addEventListener("timeout", async () => {
-      let error = { message: "Request timed out!", status: "TIMEOUT" };
+      let error = {
+        message: "Request timed out!",
+        status: "TIMEOUT"
+      };
       const handledError = await handleError(error);
       error = handledError || error;
       resolve({
@@ -250,16 +263,23 @@ async function request(url, method, options = { ...defaultConfig }) {
           fetchOptions.body = mergedConfig.body;
         }
       }
-      if (mergedConfig.cache !== void 0) fetchOptions.cache = mergedConfig.cache;
-      if (mergedConfig.credentials !== void 0) fetchOptions.credentials = mergedConfig.credentials;
+      if (mergedConfig.cache !== void 0)
+        fetchOptions.cache = mergedConfig.cache;
+      if (mergedConfig.credentials !== void 0)
+        fetchOptions.credentials = mergedConfig.credentials;
       if (mergedConfig.withCredentials) fetchOptions.credentials = "include";
-      if (mergedConfig.integrity !== void 0) fetchOptions.integrity = mergedConfig.integrity;
-      if (mergedConfig.keepalive !== void 0) fetchOptions.keepalive = mergedConfig.keepalive;
-      if (mergedConfig.mode !== void 0) fetchOptions.mode = mergedConfig.mode;
-      if (mergedConfig.redirect !== void 0) fetchOptions.redirect = mergedConfig.redirect;
-      if (mergedConfig.referrer !== void 0) fetchOptions.referrer = mergedConfig.referrer;
-      if (mergedConfig.referrerPolicy !== void 0) fetchOptions.referrerPolicy = mergedConfig.referrerPolicy;
-      if (mergedConfig.referrerPolicy !== void 0) fetchOptions.referrerPolicy = mergedConfig.referrerPolicy;
+      if (mergedConfig.integrity !== void 0)
+        fetchOptions.integrity = mergedConfig.integrity;
+      if (mergedConfig.keepalive !== void 0)
+        fetchOptions.keepalive = mergedConfig.keepalive;
+      if (mergedConfig.mode !== void 0)
+        fetchOptions.mode = mergedConfig.mode;
+      if (mergedConfig.redirect !== void 0)
+        fetchOptions.redirect = mergedConfig.redirect;
+      if (mergedConfig.referrer !== void 0)
+        fetchOptions.referrer = mergedConfig.referrer;
+      if (mergedConfig.referrerPolicy !== void 0)
+        fetchOptions.referrerPolicy = mergedConfig.referrerPolicy;
       if (options.baseUrl) {
         fullUrl = options.baseUrl + url;
       }
@@ -271,7 +291,9 @@ async function request(url, method, options = { ...defaultConfig }) {
           if (mergedConfig.errorMapping[response.status]) {
             mappedMessage = mergedConfig.errorMapping[response.status];
           } else {
-            for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
+            for (const [pattern, message] of Object.entries(
+              mergedConfig.errorMapping
+            )) {
               if (typeof pattern === "string") {
                 if (pattern === response.status.toString()) {
                   mappedMessage = message;
@@ -297,7 +319,9 @@ async function request(url, method, options = { ...defaultConfig }) {
     } catch (err) {
       let mappedMessage = err.message;
       if (mergedConfig.errorMapping) {
-        for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
+        for (const [pattern, message] of Object.entries(
+          mergedConfig.errorMapping
+        )) {
           if (typeof pattern === "string") {
             if (err.message.toLowerCase().includes(pattern.toLowerCase()) || pattern.toLowerCase() === "network_error" || pattern.toLowerCase() === "fetch failed") {
               mappedMessage = message;
@@ -376,7 +400,7 @@ async function request(url, method, options = { ...defaultConfig }) {
     }
     try {
       return await result.response.text();
-    } catch (error2) {
+    } catch {
       throw new Error("Failed to read response as text");
     }
   };
@@ -389,7 +413,7 @@ async function request(url, method, options = { ...defaultConfig }) {
     }
     try {
       return await result.response.blob();
-    } catch (error2) {
+    } catch {
       throw new Error("Failed to read response as blob");
     }
   };
@@ -402,7 +426,7 @@ async function request(url, method, options = { ...defaultConfig }) {
     }
     try {
       return await result.response.arrayBuffer();
-    } catch (error2) {
+    } catch {
       throw new Error("Failed to read response as array buffer");
     }
   };
@@ -424,7 +448,7 @@ async function request(url, method, options = { ...defaultConfig }) {
       } finally {
         reader.releaseLock();
       }
-    } catch (error2) {
+    } catch {
       throw new Error("Failed to read response stream");
     }
   };
@@ -512,7 +536,10 @@ function createInstance(instanceConfig = {}) {
         options: {
           ...instanceConfigWithDefaults,
           ...options,
-          headers: { ...instanceConfigWithDefaults.headers, ...options.headers || {} }
+          headers: {
+            ...instanceConfigWithDefaults.headers,
+            ...options.headers || {}
+          }
         }
       },
       result: null,
@@ -604,11 +631,10 @@ function createInstance(instanceConfig = {}) {
         context = applyPatch(context, patch2);
       }
     }
-    const result = await request(
-      context.request.url,
-      context.request.method,
-      { ...context.request.options, hooks: { onError } }
-    );
+    const result = await request(context.request.url, context.request.method, {
+      ...context.request.options,
+      hooks: { onError }
+    });
     context.result = result;
     if (onResponse) {
       const patch2 = await onResponse(context);

@@ -21,7 +21,7 @@ describe("Bearer Token functionality (Issue #3)", () => {
     expect(mockSetup.calls).toHaveLength(1);
     expect(mockSetup.calls[0].options.headers).toHaveProperty(
       "Authorization",
-      "Bearer test-token-123"
+      "Bearer test-token-123",
     );
   });
 
@@ -34,7 +34,7 @@ describe("Bearer Token functionality (Issue #3)", () => {
     expect(mockSetup.calls).toHaveLength(1);
     expect(mockSetup.calls[0].options.headers).toHaveProperty(
       "Authorization",
-      "Bearer post-token-456"
+      "Bearer post-token-456",
     );
   });
 
@@ -50,7 +50,7 @@ describe("Bearer Token functionality (Issue #3)", () => {
     expect(mockSetup.calls).toHaveLength(1);
     expect(mockSetup.calls[0].options.headers).toHaveProperty(
       "Authorization",
-      "Bearer instance-token-789"
+      "Bearer instance-token-789",
     );
   });
 
@@ -79,7 +79,7 @@ describe("Bearer Token functionality (Issue #3)", () => {
     expect(mockSetup.calls).toHaveLength(1);
     expect(mockSetup.calls[0].options.headers).toHaveProperty(
       "Authorization",
-      "Bearer explicit-token"
+      "Bearer explicit-token",
     );
   });
 });

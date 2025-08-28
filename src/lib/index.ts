@@ -1,3 +1,7 @@
+/**
+ * Supported HTTP methods for z-fetch requests.
+ * Includes standard HTTP methods and support for custom methods.
+ */
 export type METHODS =
   | "GET"
   | "POST"
@@ -10,84 +14,269 @@ export type METHODS =
   | "CUSTOM"
   | string;
 
+/**
+ * Utility type for making all properties of an object optional recursively.
+ * Used internally for partial context updates in hooks.
+ */
 type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
 };
 
+/**
+ * Hook function type for intercepting and modifying requests/responses.
+ * Hooks can be synchronous or asynchronous and can return partial context updates.
+ *
+ * @param context - The current request/response context
+ * @returns A partial context update object or void
+ *
+ * @example
+ * ```typescript
+ * const requestHook: Hook = async (context) => {
+ *   // Add custom header
+ *   context.setHeaders(headers => ({ ...headers, 'X-Custom': 'value' }));
+ *
+ *   // Or return a partial update
+ *   return {
+ *     request: {
+ *       options: {
+ *         headers: { ...context.request.options.headers, 'X-Custom': 'value' }
+ *       }
+ *     }
+ *   };
+ * };
+ * ```
+ */
 export type Hook = (
   context: Context,
 ) => Promise<DeepPartial<Context> | void> | DeepPartial<Context> | void;
 
+/**
+ * Context object passed to hooks containing request/response information and helper methods.
+ * Provides access to configuration, request details, response data, and utility functions.
+ *
+ * @example
+ * ```typescript
+ * const onRequest: Hook = (context) => {
+ *   // Access current request
+ *   console.log(context.request.method, context.request.url);
+ *
+ *   // Use helper methods
+ *   context.setHeaders(headers => ({ ...headers, 'Authorization': 'Bearer token' }));
+ *   context.setBody({ timestamp: Date.now() });
+ * };
+ * ```
+ */
 export type Context = {
+  /** Current z-fetch configuration */
   config: Config;
+  /** Request information including method, URL, and options */
   request: {
     method: METHODS;
     url: string;
     options: RequestOptions;
   };
+  /** Response result (null during onRequest hook) */
   result: RequestResult | null;
+  /** Error information (null if no error occurred) */
   error: { message: string; status: string | number } | null;
+
   // Helper methods for easier manipulation
-  setHeaders: (updater: (headers: { [key: string]: string }) => { [key: string]: string } | void) => void;
+  /** Helper method to update request headers */
+  setHeaders: (
+    updater: (headers: {
+      [key: string]: string;
+    }) => { [key: string]: string } | void,
+  ) => void;
+  /** Helper method to update request body */
   setBody: (body: any) => void;
-  setOptions: (updater: (options: RequestOptions) => RequestOptions | void) => void;
+  /** Helper method to update request options */
+  setOptions: (
+    updater: (options: RequestOptions) => RequestOptions | void,
+  ) => void;
+  /** Helper method to update request URL */
   setUrl: (url: string) => void;
+  /** Helper method to update request method */
   setMethod: (method: METHODS) => void;
-  setError: (error: { message: string; status: string | number } | null) => void;
+  /** Helper method to update error information */
+  setError: (
+    error: { message: string; status: string | number } | null,
+  ) => void;
 };
 
+/**
+ * Configuration object for z-fetch instances and requests.
+ * Defines default behaviors, authentication, hooks, and other options.
+ *
+ * @example
+ * ```typescript
+ * const config: Config = {
+ *   baseUrl: 'https://api.example.com',
+ *   bearerToken: 'your-token',
+ *   headers: { 'Content-Type': 'application/json' },
+ *   hooks: {
+ *     onRequest: (context) => {
+ *       context.setHeaders(headers => ({ ...headers, 'X-Timestamp': Date.now().toString() }));
+ *     },
+ *     onError: (context) => {
+ *       console.error('Request failed:', context.error);
+ *     }
+ *   },
+ *   onUploadProgress: (event) => {
+ *     console.log(`Upload: ${event.loaded}/${event.total}`);
+ *   }
+ * };
+ * ```
+ */
 export type Config = {
+  /** Base URL to prepend to all request URLs */
   baseUrl: string;
+  /** Bearer token for automatic Authorization header */
   bearerToken: string | null;
+  /** Request timeout in milliseconds */
   timeout: number;
+  /** Whether to enable automatic retries on failure */
   retry: boolean;
+  /** Maximum number of retry attempts */
   maxRetries: number;
+  /** Whether to start polling immediately after request */
   startPolling: boolean;
+  /** Whether to stop any active polling */
   stopPolling: boolean;
+  /** Interval between polling requests in milliseconds */
   pollingInterval: number;
+  /** Cache revalidation interval in milliseconds */
   revalidateCache: number;
+  /** Whether to include credentials in requests */
   withCredentials: boolean;
+  /** Whether to enable response caching for GET requests */
   withCache: boolean;
+  /** Whether to automatically parse JSON responses */
   parseJson: boolean;
+  /** Whether to automatically stringify request payload */
   stringifyPayload: boolean;
+  /** CORS mode for the request */
   mode: RequestMode;
+  /** Default headers to include with all requests */
   headers: { [key: string]: string };
+  /** Hook functions for request/response/error interception */
   hooks: {
+    /** Called before sending the request */
     onRequest?: Hook;
+    /** Called after receiving the response */
     onResponse?: Hook;
+    /** Called when an error occurs */
     onError?: Hook;
   };
+  /** Mapping of status codes/patterns to custom error messages */
   errorMapping?: {
     [statusCode: number]: string;
     [statusPattern: string]: string;
   };
-  // Progress tracking options
+  /** Callback for upload progress tracking */
   onUploadProgress?: (event: ProgressEvent) => void;
+  /** Callback for download progress tracking */
   onDownloadProgress?: (event: ProgressEvent) => void;
-  useXHRForProgress?: boolean; // Force XMLHttpRequest when progress callbacks are provided
+  /** Force XMLHttpRequest when progress callbacks are provided */
+  useXHRForProgress?: boolean;
 };
 
+/**
+ * Result object returned by z-fetch requests containing response data and utility methods.
+ * Provides access to response data, error information, and various control methods.
+ *
+ * @example
+ * ```typescript
+ * const result = await api.get('/users');
+ *
+ * if (result.error) {
+ *   console.error('Request failed:', result.error.message);
+ * } else {
+ *   console.log('Users:', result.data);
+ *
+ *   // Stream response data
+ *   const text = await result.streamToString();
+ *
+ *   // Start polling for updates
+ *   result.onPollDataReceived((newResult) => {
+ *     console.log('Updated data:', newResult.data);
+ *   });
+ *   result.startPolling(5000);
+ * }
+ * ```
+ */
 export type RequestResult = {
+  /** Whether the request is currently loading */
   loading: boolean;
+  /** Error information if the request failed */
   error: { message: string; status: string | number } | null;
+  /** Response data (parsed JSON or raw text based on parseJson config) */
   data: any;
+  /** Raw Response object from fetch API */
   response: Response | null;
+  /** Method to refetch the same request */
   refetch: (callback: (result: RequestResult) => void) => Promise<any>;
+  /** Method to cancel the ongoing request */
   cancelRequest: () => void;
+  /** Method to start polling for updates */
   startPolling: (interval?: number) => void;
+  /** Method to stop active polling */
   stopPolling: () => void;
+  /** Method to set callback for polling data updates */
   onPollDataReceived: (callback: (result: RequestResult) => void) => void;
+
   // Streaming utilities
+  /** Stream response body as string */
   streamToString?: () => Promise<string>;
+  /** Stream response body as Blob */
   streamToBlob?: () => Promise<Blob>;
+  /** Stream response body as ArrayBuffer */
   streamToArrayBuffer?: () => Promise<ArrayBuffer>;
+  /** Stream response body chunk by chunk */
   streamChunks?: (callback: (chunk: Uint8Array) => void) => Promise<void>;
 };
 
+/**
+ * Request options for z-fetch requests.
+ * Extends standard RequestInit while allowing object bodies and partial Config options.
+ *
+ * @example
+ * ```typescript
+ * const options: RequestOptions = {
+ *   body: { name: 'John', age: 30 }, // Will be JSON.stringify'd if stringifyPayload is true
+ *   headers: { 'X-Custom': 'value' },
+ *   timeout: 10000,
+ *   bearerToken: 'override-token',
+ *   onUploadProgress: (event) => console.log(`Progress: ${event.loaded}/${event.total}`)
+ * };
+ *
+ * const result = await api.post('/users', options);
+ * ```
+ */
 export type RequestOptions = Omit<RequestInit, "body"> & {
+  /** Request body - can be object (will be stringified), string, or any BodyInit */
   body?: BodyInit | object | null;
 } & Partial<Config>;
 
+/**
+ * Default configuration object for z-fetch.
+ * Provides sensible defaults for all configuration options.
+ * Can be overridden globally or per-instance.
+ *
+ * @example
+ * ```typescript
+ * // Global config override
+ * Object.assign(defaultConfig, {
+ *   baseUrl: 'https://api.myapp.com',
+ *   timeout: 60000
+ * });
+ *
+ * // Or use createInstance for per-instance config
+ * const api = createInstance({
+ *   ...defaultConfig,
+ *   bearerToken: 'my-token'
+ * });
+ * ```
+ */
 export const defaultConfig: Config = {
   baseUrl: "",
   bearerToken: null,
@@ -114,9 +303,24 @@ export const defaultConfig: Config = {
 
 let config: Config = { ...defaultConfig };
 
+/**
+ * Internal cache for storing GET request results.
+ * Used when withCache is enabled to avoid duplicate requests.
+ */
 const cache: Map<string, RequestResult> = new Map();
 
-// XMLHttpRequest-based request for progress tracking
+/**
+ * Performs HTTP request using XMLHttpRequest for progress tracking support.
+ * Used internally when upload/download progress callbacks are provided.
+ *
+ * @param url - The request URL
+ * @param method - HTTP method to use
+ * @param options - Request options and configuration
+ * @param context - Additional context for error handling
+ * @returns Promise resolving to basic request result
+ *
+ * @internal
+ */
 async function requestWithProgress(
   url: string,
   method: METHODS,
@@ -131,20 +335,23 @@ async function requestWithProgress(
   return new Promise((resolve) => {
     const mergedConfig = { ...config, ...options };
     let fullUrl = mergedConfig.baseUrl ? mergedConfig.baseUrl + url : url;
-    
+
     const xhr = new XMLHttpRequest();
-    
+
     // Setup upload progress tracking
     if (mergedConfig.onUploadProgress && xhr.upload) {
-      xhr.upload.addEventListener('progress', mergedConfig.onUploadProgress);
+      xhr.upload.addEventListener("progress", mergedConfig.onUploadProgress);
     }
-    
+
     // Setup download progress tracking
     if (mergedConfig.onDownloadProgress) {
-      xhr.addEventListener('progress', mergedConfig.onDownloadProgress);
+      xhr.addEventListener("progress", mergedConfig.onDownloadProgress);
     }
-    
-    const handleError = async (error: { message: string; status: string | number }) => {
+
+    const handleError = async (error: {
+      message: string;
+      status: string | number;
+    }) => {
       if (context?.onError && context.config) {
         const errorContext = {
           config: context.config,
@@ -160,11 +367,13 @@ async function requestWithProgress(
           setOptions: () => {},
           setUrl: () => {},
           setMethod: () => {},
-          setError: (newError: { message: string; status: string | number } | null) => {
+          setError: (
+            newError: { message: string; status: string | number } | null,
+          ) => {
             error = newError || error;
           },
         };
-        
+
         const patch = await context.onError(errorContext);
         if (patch?.error !== undefined) {
           error = patch.error || error;
@@ -172,15 +381,17 @@ async function requestWithProgress(
       }
       return error;
     };
-    
-    xhr.addEventListener('loadend', async () => {
+
+    xhr.addEventListener("loadend", async () => {
       let error: { message: string; status: string | number } | null = null;
       let data: any = null;
       let response: Response | null = null;
-      
+
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
-          data = mergedConfig.parseJson ? JSON.parse(xhr.responseText) : xhr.responseText;
+          data = mergedConfig.parseJson
+            ? JSON.parse(xhr.responseText)
+            : xhr.responseText;
           // Create a mock Response object for compatibility
           response = {
             ok: true,
@@ -188,25 +399,33 @@ async function requestWithProgress(
             statusText: xhr.statusText,
             url: fullUrl,
             headers: new Headers(),
-            json: async () => mergedConfig.parseJson ? JSON.parse(xhr.responseText) : xhr.responseText,
+            json: async () =>
+              mergedConfig.parseJson
+                ? JSON.parse(xhr.responseText)
+                : xhr.responseText,
             text: async () => xhr.responseText,
             blob: async () => new Blob([xhr.response]),
             arrayBuffer: async () => xhr.response,
             formData: async () => new FormData(),
             body: null,
             bodyUsed: false,
-            clone: function() { return this; },
-            type: 'basic',
-            redirected: false
+            clone: function () {
+              return this;
+            },
+            type: "basic",
+            redirected: false,
           } as Response;
-        } catch (err) {
-          error = { message: 'Failed to parse response', status: 'PARSE_ERROR' };
+        } catch {
+          error = {
+            message: "Failed to parse response",
+            status: "PARSE_ERROR",
+          };
           error = await handleError(error);
         }
       } else {
         const originalMessage = xhr.statusText;
         let mappedMessage = originalMessage;
-        
+
         // Apply error mapping if configured
         if (mergedConfig.errorMapping) {
           // Check for exact status code match
@@ -214,14 +433,20 @@ async function requestWithProgress(
             mappedMessage = mergedConfig.errorMapping[xhr.status];
           } else {
             // Check for pattern matches
-            for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
-              if (typeof pattern === 'string') {
+            for (const [pattern, message] of Object.entries(
+              mergedConfig.errorMapping,
+            )) {
+              if (typeof pattern === "string") {
                 if (pattern === xhr.status.toString()) {
                   mappedMessage = message;
                   break;
                 }
-                if (originalMessage.toLowerCase().includes(pattern.toLowerCase()) ||
-                    xhr.status.toString().includes(pattern)) {
+                if (
+                  originalMessage
+                    .toLowerCase()
+                    .includes(pattern.toLowerCase()) ||
+                  xhr.status.toString().includes(pattern)
+                ) {
                   mappedMessage = message;
                   break;
                 }
@@ -229,88 +454,112 @@ async function requestWithProgress(
             }
           }
         }
-        
+
         error = { message: mappedMessage, status: xhr.status };
         error = await handleError(error);
       }
-      
+
       resolve({ loading: false, error, data, response });
     });
-    
-    xhr.addEventListener('error', async () => {
-      let mappedMessage = 'Network error';
-      
+
+    xhr.addEventListener("error", async () => {
+      let mappedMessage = "Network error";
+
       // Apply error mapping for network errors if configured
       if (mergedConfig.errorMapping) {
-        for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
-          if (typeof pattern === 'string') {
-            if (pattern.toLowerCase() === 'network_error' ||
-                pattern.toLowerCase() === 'fetch failed') {
+        for (const [pattern, message] of Object.entries(
+          mergedConfig.errorMapping,
+        )) {
+          if (typeof pattern === "string") {
+            if (
+              pattern.toLowerCase() === "network_error" ||
+              pattern.toLowerCase() === "fetch failed"
+            ) {
               mappedMessage = message;
               break;
             }
           }
         }
       }
-      
-      let error: { message: string; status: string | number } = { message: mappedMessage, status: 'NETWORK_ERROR' };
+
+      let error: { message: string; status: string | number } = {
+        message: mappedMessage,
+        status: "NETWORK_ERROR",
+      };
       const handledError = await handleError(error);
       error = handledError || error;
-      
-      resolve({ 
-        loading: false, 
-        error, 
-        data: null, 
-        response: null 
+
+      resolve({
+        loading: false,
+        error,
+        data: null,
+        response: null,
       });
     });
-    
-    xhr.addEventListener('timeout', async () => {
-      let error: { message: string; status: string | number } = { message: 'Request timed out!', status: 'TIMEOUT' };
+
+    xhr.addEventListener("timeout", async () => {
+      let error: { message: string; status: string | number } = {
+        message: "Request timed out!",
+        status: "TIMEOUT",
+      };
       const handledError = await handleError(error);
       error = handledError || error;
-      
-      resolve({ 
-        loading: false, 
-        error, 
-        data: null, 
-        response: null 
+
+      resolve({
+        loading: false,
+        error,
+        data: null,
+        response: null,
       });
     });
-    
+
     // Setup the request
     xhr.open(method, fullUrl);
     xhr.timeout = mergedConfig.timeout;
-    
+
     // Set headers
     const headers = { ...config.headers, ...(options.headers || {}) };
     if (mergedConfig.bearerToken && !headers["Authorization"]) {
       headers["Authorization"] = `Bearer ${mergedConfig.bearerToken}`;
     }
-    
+
     Object.entries(headers).forEach(([key, value]) => {
       xhr.setRequestHeader(key, String(value));
     });
-    
+
     // Set credentials
     if (mergedConfig.withCredentials) {
       xhr.withCredentials = true;
     }
-    
+
     // Send the request
     let body: any = null;
     if (mergedConfig.body !== undefined) {
       if (typeof mergedConfig.body === "object" && mergedConfig.body !== null) {
-        body = mergedConfig.stringifyPayload ? JSON.stringify(mergedConfig.body) : mergedConfig.body;
+        body = mergedConfig.stringifyPayload
+          ? JSON.stringify(mergedConfig.body)
+          : mergedConfig.body;
       } else {
         body = mergedConfig.body;
       }
     }
-    
+
     xhr.send(body);
   });
 }
 
+/**
+ * Core request function that handles HTTP requests using fetch API or XMLHttpRequest.
+ * Provides comprehensive error handling, retries, caching, polling, and streaming support.
+ * Automatically switches to XMLHttpRequest when progress tracking is needed.
+ *
+ * @param url - The request URL (can be relative if baseUrl is configured)
+ * @param method - HTTP method to use
+ * @param options - Request options and configuration overrides
+ * @returns Promise resolving to RequestResult with response data and utilities
+ *
+ * @internal
+ */
 async function request(
   url: string,
   method: METHODS,
@@ -329,9 +578,10 @@ async function request(
   let fullUrl = mergedConfig.baseUrl ? mergedConfig.baseUrl + url : url;
 
   // Check if we should use XMLHttpRequest for progress tracking
-  const shouldUseXHR = mergedConfig.useXHRForProgress || 
-                       mergedConfig.onUploadProgress || 
-                       mergedConfig.onDownloadProgress;
+  const shouldUseXHR =
+    mergedConfig.useXHRForProgress ||
+    mergedConfig.onUploadProgress ||
+    mergedConfig.onDownloadProgress;
 
   const timeoutId = setTimeout(() => {
     abortController.abort();
@@ -352,8 +602,11 @@ async function request(
         onError: mergedConfig.hooks?.onError,
       });
     }
-    
-    const handleError = async (error: { message: string; status: string | number }) => {
+
+    const handleError = async (error: {
+      message: string;
+      status: string | number;
+    }) => {
       if (mergedConfig.hooks?.onError) {
         const errorContext = {
           config: mergedConfig,
@@ -369,11 +622,13 @@ async function request(
           setOptions: () => {},
           setUrl: () => {},
           setMethod: () => {},
-          setError: (newError: { message: string; status: string | number } | null) => {
+          setError: (
+            newError: { message: string; status: string | number } | null,
+          ) => {
             error = newError || error;
           },
         };
-        
+
         const patch = await mergedConfig.hooks.onError(errorContext);
         if (patch?.error !== undefined) {
           error = patch.error || error;
@@ -381,7 +636,7 @@ async function request(
       }
       return error;
     };
-    
+
     try {
       // Handle bearerToken option - but don't override explicit Authorization header
       const headers = { ...config.headers, ...(options.headers || {}) };
@@ -398,23 +653,34 @@ async function request(
 
       // Add valid fetch options from merged config
       if (mergedConfig.body !== undefined) {
-        if (typeof mergedConfig.body === "object" && mergedConfig.body !== null) {
-          fetchOptions.body = mergedConfig.stringifyPayload ? JSON.stringify(mergedConfig.body) : mergedConfig.body as BodyInit;
+        if (
+          typeof mergedConfig.body === "object" &&
+          mergedConfig.body !== null
+        ) {
+          fetchOptions.body = mergedConfig.stringifyPayload
+            ? JSON.stringify(mergedConfig.body)
+            : (mergedConfig.body as BodyInit);
         } else {
           fetchOptions.body = mergedConfig.body as BodyInit;
         }
       }
-      if (mergedConfig.cache !== undefined) fetchOptions.cache = mergedConfig.cache;
-      if (mergedConfig.credentials !== undefined) fetchOptions.credentials = mergedConfig.credentials;
-      if (mergedConfig.withCredentials) fetchOptions.credentials = 'include';
-      if (mergedConfig.integrity !== undefined) fetchOptions.integrity = mergedConfig.integrity;
-      if (mergedConfig.keepalive !== undefined) fetchOptions.keepalive = mergedConfig.keepalive;
-      if (mergedConfig.mode !== undefined) fetchOptions.mode = mergedConfig.mode;
-      if (mergedConfig.redirect !== undefined) fetchOptions.redirect = mergedConfig.redirect;
-      if (mergedConfig.referrer !== undefined) fetchOptions.referrer = mergedConfig.referrer;
-      if (mergedConfig.referrerPolicy !== undefined) fetchOptions.referrerPolicy = mergedConfig.referrerPolicy;
-
-      if (mergedConfig.referrerPolicy !== undefined) fetchOptions.referrerPolicy = mergedConfig.referrerPolicy;
+      if (mergedConfig.cache !== undefined)
+        fetchOptions.cache = mergedConfig.cache;
+      if (mergedConfig.credentials !== undefined)
+        fetchOptions.credentials = mergedConfig.credentials;
+      if (mergedConfig.withCredentials) fetchOptions.credentials = "include";
+      if (mergedConfig.integrity !== undefined)
+        fetchOptions.integrity = mergedConfig.integrity;
+      if (mergedConfig.keepalive !== undefined)
+        fetchOptions.keepalive = mergedConfig.keepalive;
+      if (mergedConfig.mode !== undefined)
+        fetchOptions.mode = mergedConfig.mode;
+      if (mergedConfig.redirect !== undefined)
+        fetchOptions.redirect = mergedConfig.redirect;
+      if (mergedConfig.referrer !== undefined)
+        fetchOptions.referrer = mergedConfig.referrer;
+      if (mergedConfig.referrerPolicy !== undefined)
+        fetchOptions.referrerPolicy = mergedConfig.referrerPolicy;
 
       if (options.baseUrl) {
         fullUrl = options.baseUrl + url;
@@ -425,7 +691,7 @@ async function request(
       if (!response.ok) {
         const originalMessage = response.statusText;
         let mappedMessage = originalMessage;
-        
+
         // Apply error mapping if configured
         if (mergedConfig.errorMapping) {
           // Check for exact status code match
@@ -433,16 +699,22 @@ async function request(
             mappedMessage = mergedConfig.errorMapping[response.status];
           } else {
             // Check for pattern matches
-            for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
-              if (typeof pattern === 'string') {
+            for (const [pattern, message] of Object.entries(
+              mergedConfig.errorMapping,
+            )) {
+              if (typeof pattern === "string") {
                 // Check if status code matches pattern
                 if (pattern === response.status.toString()) {
                   mappedMessage = message;
                   break;
                 }
                 // Check if original message contains pattern (case insensitive)
-                if (originalMessage.toLowerCase().includes(pattern.toLowerCase()) ||
-                    response.status.toString().includes(pattern)) {
+                if (
+                  originalMessage
+                    .toLowerCase()
+                    .includes(pattern.toLowerCase()) ||
+                  response.status.toString().includes(pattern)
+                ) {
                   mappedMessage = message;
                   break;
                 }
@@ -450,13 +722,15 @@ async function request(
             }
           }
         }
-        
+
         error = { message: mappedMessage, status: response.status };
         error = await handleError(error);
       } else {
         // Clone response for data extraction to preserve body for streaming utilities
         const responseForData = response.clone();
-        data = mergedConfig.parseJson ? await responseForData.json() : await responseForData.text();
+        data = mergedConfig.parseJson
+          ? await responseForData.json()
+          : await responseForData.text();
       }
 
       clearTimeout(timeoutId);
@@ -464,21 +738,25 @@ async function request(
       return { loading, error, data, response };
     } catch (err: any) {
       let mappedMessage = err.message;
-      
+
       // Apply error mapping for network errors if configured
       if (mergedConfig.errorMapping) {
-        for (const [pattern, message] of Object.entries(mergedConfig.errorMapping)) {
-          if (typeof pattern === 'string') {
-            if (err.message.toLowerCase().includes(pattern.toLowerCase()) ||
-                pattern.toLowerCase() === 'network_error' ||
-                pattern.toLowerCase() === 'fetch failed') {
+        for (const [pattern, message] of Object.entries(
+          mergedConfig.errorMapping,
+        )) {
+          if (typeof pattern === "string") {
+            if (
+              err.message.toLowerCase().includes(pattern.toLowerCase()) ||
+              pattern.toLowerCase() === "network_error" ||
+              pattern.toLowerCase() === "fetch failed"
+            ) {
               mappedMessage = message;
               break;
             }
           }
         }
       }
-      
+
       error = { message: mappedMessage, status: "NETWORK_ERROR" };
       error = await handleError(error);
       clearTimeout(timeoutId);
@@ -537,6 +815,7 @@ async function request(
 
   const startPolling = (interval: number = config.pollingInterval): void => {
     if (!pollCallback) {
+      // eslint-disable-next-line no-console
       console.warn("Polling not started: onPollDataReceived callback not set");
       return;
     }
@@ -549,6 +828,7 @@ async function request(
         pollCallback!(newResult as RequestResult);
         Object.assign(result, newResult);
       } catch (pollError) {
+        // eslint-disable-next-line no-console
         console.error("Polling error:", pollError);
       }
     }, interval);
@@ -557,54 +837,56 @@ async function request(
   // Streaming utility functions
   const streamToString = async (): Promise<string> => {
     if (!result.response) {
-      throw new Error('No response available for streaming');
+      throw new Error("No response available for streaming");
     }
-    if (typeof result.response.text !== 'function') {
-      throw new Error('No response body available for streaming');
+    if (typeof result.response.text !== "function") {
+      throw new Error("No response body available for streaming");
     }
     try {
       return await result.response.text();
-    } catch (error) {
-      throw new Error('Failed to read response as text');
+    } catch {
+      throw new Error("Failed to read response as text");
     }
   };
 
   const streamToBlob = async (): Promise<Blob> => {
     if (!result.response) {
-      throw new Error('No response available for streaming');
+      throw new Error("No response available for streaming");
     }
-    if (typeof result.response.blob !== 'function') {
-      throw new Error('No response body available for streaming');
+    if (typeof result.response.blob !== "function") {
+      throw new Error("No response body available for streaming");
     }
     try {
       return await result.response.blob();
-    } catch (error) {
-      throw new Error('Failed to read response as blob');
+    } catch {
+      throw new Error("Failed to read response as blob");
     }
   };
 
   const streamToArrayBuffer = async (): Promise<ArrayBuffer> => {
     if (!result.response) {
-      throw new Error('No response available for streaming');
+      throw new Error("No response available for streaming");
     }
-    if (typeof result.response.arrayBuffer !== 'function') {
-      throw new Error('No response body available for streaming');
+    if (typeof result.response.arrayBuffer !== "function") {
+      throw new Error("No response body available for streaming");
     }
     try {
       return await result.response.arrayBuffer();
-    } catch (error) {
-      throw new Error('Failed to read response as array buffer');
+    } catch {
+      throw new Error("Failed to read response as array buffer");
     }
   };
 
-  const streamChunks = async (callback: (chunk: Uint8Array) => void): Promise<void> => {
+  const streamChunks = async (
+    callback: (chunk: Uint8Array) => void,
+  ): Promise<void> => {
     if (!result.response) {
-      throw new Error('No response available for streaming');
+      throw new Error("No response available for streaming");
     }
     if (!result.response.body) {
-      throw new Error('No response body available for streaming');
+      throw new Error("No response body available for streaming");
     }
-    
+
     try {
       const reader = result.response.body.getReader();
       try {
@@ -616,8 +898,8 @@ async function request(
       } finally {
         reader.releaseLock();
       }
-    } catch (error) {
-      throw new Error('Failed to read response stream');
+    } catch {
+      throw new Error("Failed to read response stream");
     }
   };
 
@@ -869,7 +1151,8 @@ export function CUSTOM(
  */
 export function createInstance(instanceConfig: Partial<Config> = {}) {
   const instanceConfigWithDefaults = { ...defaultConfig, ...instanceConfig };
-  const { onRequest, onResponse, onError } = instanceConfigWithDefaults.hooks || {};
+  const { onRequest, onResponse, onError } =
+    instanceConfigWithDefaults.hooks || {};
 
   const interceptor = async (
     method: METHODS,
@@ -881,16 +1164,23 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
       request: {
         method,
         url,
-        options: { 
-          ...instanceConfigWithDefaults, 
+        options: {
+          ...instanceConfigWithDefaults,
           ...options,
-          headers: { ...instanceConfigWithDefaults.headers, ...(options.headers || {}) }
+          headers: {
+            ...instanceConfigWithDefaults.headers,
+            ...(options.headers || {}),
+          },
         },
       },
       result: null,
       error: null,
       // Helper methods for easier manipulation
-      setHeaders: (updater: (headers: { [key: string]: string }) => { [key: string]: string } | void) => {
+      setHeaders: (
+        updater: (headers: {
+          [key: string]: string;
+        }) => { [key: string]: string } | void,
+      ) => {
         const currentHeaders = context.request.options.headers || {};
         const result = updater(currentHeaders);
         if (result) {
@@ -900,7 +1190,9 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
       setBody: (body: any) => {
         context.request.options.body = body;
       },
-      setOptions: (updater: (options: RequestOptions) => RequestOptions | void) => {
+      setOptions: (
+        updater: (options: RequestOptions) => RequestOptions | void,
+      ) => {
         const result = updater(context.request.options);
         if (result) {
           context.request.options = result;
@@ -912,7 +1204,9 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
       setMethod: (method: METHODS) => {
         context.request.method = method;
       },
-      setError: (error: { message: string; status: string | number } | null) => {
+      setError: (
+        error: { message: string; status: string | number } | null,
+      ) => {
         context.error = error;
       },
     };
@@ -930,9 +1224,9 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
             ...patch.request?.options,
             headers: {
               ...original.request.options.headers,
-              ...(patch.request?.options?.headers || {})
-            }
-          }
+              ...(patch.request?.options?.headers || {}),
+            },
+          },
         },
         result: patch.result ?? original.result,
         error: patch.error ?? original.error,
@@ -944,9 +1238,13 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
         setMethod: original.setMethod,
         setError: original.setError,
       } as Context;
-      
+
       // Update the helper methods to work with the new context
-      updated.setHeaders = (updater: (headers: { [key: string]: string }) => { [key: string]: string } | void) => {
+      updated.setHeaders = (
+        updater: (headers: {
+          [key: string]: string;
+        }) => { [key: string]: string } | void,
+      ) => {
         const currentHeaders = updated.request.options.headers || {};
         const result = updater(currentHeaders);
         if (result) {
@@ -956,7 +1254,9 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
       updated.setBody = (body: any) => {
         updated.request.options.body = body;
       };
-      updated.setOptions = (updater: (options: RequestOptions) => RequestOptions | void) => {
+      updated.setOptions = (
+        updater: (options: RequestOptions) => RequestOptions | void,
+      ) => {
         const result = updater(updated.request.options);
         if (result) {
           updated.request.options = result;
@@ -968,10 +1268,12 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
       updated.setMethod = (method: METHODS) => {
         updated.request.method = method;
       };
-      updated.setError = (error: { message: string; status: string | number } | null) => {
+      updated.setError = (
+        error: { message: string; status: string | number } | null,
+      ) => {
         updated.error = error;
       };
-      
+
       return updated;
     };
 
@@ -985,11 +1287,10 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
 
     // console.log('context log after::', context.request.options);
 
-    const result = await request(
-      context.request.url,
-      context.request.method,
-      { ...context.request.options, hooks: { onError } },
-    );
+    const result = await request(context.request.url, context.request.method, {
+      ...context.request.options,
+      hooks: { onError },
+    });
 
     context.result = result;
 

@@ -10,7 +10,7 @@ describe("Z-Fetch integration tests (mocked)", () => {
       id: 1,
       title: "test post",
       body: "test body",
-      userId: 1
+      userId: 1,
     });
   });
 

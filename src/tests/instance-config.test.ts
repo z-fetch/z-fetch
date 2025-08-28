@@ -30,7 +30,7 @@ describe("Instance configuration (Issue #4)", () => {
       baseUrl: "https://api.example.com",
       headers: {
         "X-Custom-Header": "instance-value",
-        "Accept": "application/json",
+        Accept: "application/json",
       },
     });
 
@@ -44,7 +44,7 @@ describe("Instance configuration (Issue #4)", () => {
 
   it("should apply custom mode from instance config", async () => {
     const api = createInstance({
-      baseUrl: "https://api.example.com", 
+      baseUrl: "https://api.example.com",
       mode: "no-cors",
     });
 
@@ -89,7 +89,7 @@ describe("Instance configuration (Issue #4)", () => {
     expect(mockSetup.calls).toHaveLength(1);
     expect(mockSetup.calls[0].options.headers).toHaveProperty(
       "Authorization",
-      "Bearer helper-token"
+      "Bearer helper-token",
     );
   });
 
