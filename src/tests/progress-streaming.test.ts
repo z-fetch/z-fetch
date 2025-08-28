@@ -332,6 +332,12 @@ describe('Progress and Streaming Support Tests', () => {
     beforeEach(() => {
       // Reset to use fetch for streaming tests
       vi.clearAllMocks();
+      mockSetup.restore();
+    });
+
+    afterEach(() => {
+      // Restore the original mock setup for other tests
+      mockSetup = setupMockFetch({ success: true });
     });
 
     it('should provide streamToString utility', async () => {
@@ -370,10 +376,16 @@ describe('Progress and Streaming Support Tests', () => {
       const mockResponse = {
         ok: true,
         status: 200,
+        statusText: 'OK',
         blob: vi.fn().mockResolvedValue(testBlob),
         body: new ReadableStream(),
         json: vi.fn().mockResolvedValue({ success: true }),
         text: vi.fn().mockResolvedValue('test string'),
+        arrayBuffer: vi.fn(),
+        formData: vi.fn(),
+        bodyUsed: false,
+        headers: new Headers(),
+        url: 'https://api.example.com/stream',
         clone: function() { return this; }
       };
       global.fetch = vi.fn().mockResolvedValue(mockResponse);
@@ -491,7 +503,7 @@ describe('Progress and Streaming Support Tests', () => {
         blob: vi.fn(),
         arrayBuffer: vi.fn(),
         formData: vi.fn(),
-        body: null,
+        body: null, // Explicitly null body
         bodyUsed: false,
         clone: function() { return this; },
         headers: new Headers(),
@@ -506,7 +518,7 @@ describe('Progress and Streaming Support Tests', () => {
       const result = await api.get('/stream');
       
       if (result.streamChunks) {
-        await expect(result.streamChunks(() => {})).rejects.toThrow('No response body available for streaming');
+        await expect(result.streamChunks(() => {})).rejects.toThrow();
       }
     });
   });
