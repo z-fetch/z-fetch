@@ -1,0 +1,249 @@
+---
+title: 📊 Progress Tracking
+description: Real-time upload and download progress monitoring with automatic XMLHttpRequest switching.
+---
+
+Z-Fetch provides powerful progress tracking capabilities for both uploads and downloads, automatically switching to XMLHttpRequest when progress callbacks are provided.
+
+## How It Works
+
+When you provide `onUploadProgress` or `onDownloadProgress` callbacks, Z-Fetch automatically:
+
+1. **Switches to XMLHttpRequest** for progress support
+2. **Maintains full API compatibility** with fetch
+3. **Provides real-time progress events** with loaded/total bytes
+4. **Falls back to fetch** when no progress callbacks are needed
+
+<Callout title="Smart Implementation" type="info">
+  Z-Fetch automatically chooses the best transport method based on your needs - XMLHttpRequest for progress, fetch for everything else.
+</Callout>
+
+## Upload Progress
+
+Track file upload progress in real-time:
+
+```js
+import { POST } from '@z-fetch/fetch';
+
+const uploadFile = async () => {
+  const fileInput = document.getElementById('file');
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  const { data, error } = await POST('https://api.example.com/upload', {
+    body: formData,
+    onUploadProgress: (event) => {
+      const percentage = Math.round((event.loaded / event.total) * 100);
+      console.log(`Upload progress: ${percentage}%`);
+      
+      // Update UI
+      updateProgressBar(percentage);
+      updateStatusText(`Uploading... ${percentage}%`);
+    }
+  });
+
+  if (data) {
+    console.log('Upload complete!', data);
+  } else {
+    console.error('Upload failed:', error.message);
+  }
+};
+```
+
+## Download Progress
+
+Monitor download progress for large files:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const downloadFile = async () => {
+  const { data, error } = await GET('https://api.example.com/download/large-file.zip', {
+    onDownloadProgress: (event) => {
+      if (event.lengthComputable) {
+        const percentage = Math.round((event.loaded / event.total) * 100);
+        console.log(`Download progress: ${percentage}%`);
+        
+        // Update download UI
+        updateDownloadBar(percentage);
+        updateDownloadText(`${formatBytes(event.loaded)} / ${formatBytes(event.total)}`);
+      } else {
+        console.log(`Downloaded: ${formatBytes(event.loaded)} bytes`);
+      }
+    }
+  });
+
+  if (data) {
+    console.log('Download complete!');
+  } else {
+    console.error('Download failed:', error.message);
+  }
+};
+```
+
+## Combined Upload & Download
+
+Track both upload and download phases:
+
+```js
+import { POST } from '@z-fetch/fetch';
+
+const processFile = async () => {
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+
+  const { data, error } = await POST('https://api.example.com/process', {
+    body: formData,
+    onUploadProgress: (event) => {
+      const percentage = Math.round((event.loaded / event.total) * 100);
+      console.log(`Uploading: ${percentage}%`);
+      showUploadProgress(percentage);
+    },
+    onDownloadProgress: (event) => {
+      const percentage = Math.round((event.loaded / event.total) * 100);
+      console.log(`Processing: ${percentage}%`);
+      showProcessingProgress(percentage);
+    }
+  });
+
+  if (data) {
+    console.log('File processed successfully!', data);
+  }
+};
+```
+
+## Real-World Examples
+
+### Image Upload with Preview
+
+```js
+import { POST } from '@z-fetch/fetch';
+
+const uploadImage = async (imageFile) => {
+  const formData = new FormData();
+  formData.append('image', imageFile);
+
+  // Show preview
+  const previewUrl = URL.createObjectURL(imageFile);
+  showImagePreview(previewUrl);
+
+  const { data, error } = await POST('/api/images/upload', {
+    body: formData,
+    onUploadProgress: (event) => {
+      const progress = Math.round((event.loaded / event.total) * 100);
+      updateUploadProgress(progress);
+      
+      if (progress === 100) {
+        showMessage('Processing image...');
+      }
+    }
+  });
+
+  // Cleanup preview
+  URL.revokeObjectURL(previewUrl);
+
+  if (data) {
+    showMessage('Image uploaded successfully!');
+    return data.imageUrl;
+  } else {
+    showError(`Upload failed: ${error.message}`);
+  }
+};
+```
+
+### Large File Download with Resume
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const downloadLargeFile = async (url, filename) => {
+  let downloadedBytes = 0;
+
+  const { data, error } = await GET(url, {
+    onDownloadProgress: (event) => {
+      downloadedBytes = event.loaded;
+      
+      if (event.lengthComputable) {
+        const progress = Math.round((event.loaded / event.total) * 100);
+        const speed = calculateDownloadSpeed(event.loaded);
+        const eta = calculateETA(event.loaded, event.total, speed);
+        
+        updateDownloadStats({
+          progress,
+          downloaded: formatBytes(event.loaded),
+          total: formatBytes(event.total),
+          speed: formatBytes(speed) + '/s',
+          eta: formatTime(eta)
+        });
+      }
+    }
+  });
+
+  if (data) {
+    saveFile(data, filename);
+    showMessage(`Downloaded ${filename} successfully!`);
+  } else {
+    console.error(`Download failed at ${formatBytes(downloadedBytes)}:`, error.message);
+    // Could implement resume logic here
+  }
+};
+```
+
+## Progress Event Properties
+
+The progress event object contains:
+
+```js
+{
+  loaded: number,           // Bytes transferred so far
+  total: number,           // Total bytes (if known)
+  lengthComputable: boolean // Whether total is available
+}
+```
+
+## Instance-Level Progress
+
+Set default progress handlers for all requests:
+
+```js
+import { createInstance } from '@z-fetch/fetch';
+
+const api = createInstance({
+  baseUrl: 'https://api.example.com',
+  onUploadProgress: (event) => {
+    console.log(`Global upload: ${Math.round(event.loaded/event.total*100)}%`);
+  },
+  onDownloadProgress: (event) => {
+    console.log(`Global download: ${Math.round(event.loaded/event.total*100)}%`);
+  }
+});
+
+// All requests will now have progress tracking
+await api.post('/upload', { body: formData });
+await api.get('/download/file.zip');
+```
+
+## Helper Functions
+
+```js
+// Format bytes for display
+const formatBytes = (bytes) => {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+// Calculate download speed
+const calculateDownloadSpeed = (loaded, startTime = Date.now()) => {
+  const elapsed = (Date.now() - startTime) / 1000;
+  return elapsed > 0 ? loaded / elapsed : 0;
+};
+
+// Estimate time remaining
+const calculateETA = (loaded, total, speed) => {
+  const remaining = total - loaded;
+  return speed > 0 ? remaining / speed : 0;
+};
+```

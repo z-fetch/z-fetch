@@ -1,56 +1,30 @@
 ---
-title: 💪 Using Hooks
-description: Hooks allow you to hook into the request lifecycle with powerful helper methods.
+title: 💪 Using Hooks (Deprecated)
+description: This page has been reorganized into modular sections for better navigation.
 ---
 
-<Callout title="Looking for interceptors?" type="warn">
-You want to hook into some lifecycle, great, they're called hooks!
+<Callout title="Documentation Reorganized" type="warn">
+  This page has been split into modular sections for easier reading and navigation. Please use the new organized sections below.
 </Callout>
 
-Hooks are a powerful feature that allow you to hook into the request lifecycle in order to intercept it and modify the request or response. Hooks can be used to implement features such as authentication, logging, custom caching, error handling, and more.
+## 📚 New Modular Hook Documentation
 
-This is a common pattern in fetch libraries and so you can use it in kinda similar use cases.
+The hooks documentation has been reorganized into focused sections:
 
-## ✨ New Simplified Hooks API
+### 🪝 Hook Fundamentals
+- **[Hook Basics](/docs/hooks/basics)** - Understanding lifecycle hooks and context
+- **[Helper Methods](/docs/hooks/helper-methods)** - Simplified API with intuitive helper methods
 
-Z-Fetch now provides **intuitive helper methods** to make hooks much easier to work with, eliminating complex spreading patterns:
+### 🚨 Error Management  
+- **[Error Handling](/docs/features/error-handling)** - Comprehensive error handling with onError hook
 
-### Helper Methods Available
+## Quick Navigation
 
-- `setHeaders(updater)` - Easily modify headers
-- `setBody(body)` - Set request body  
-- `setOptions(updater)` - Update request options
-- `setUrl(url)` - Change request URL
-- `setMethod(method)` - Modify HTTP method
-- `setError(error)` - Set or modify errors (onError hook only)
-
-### Before vs After
-
-**Before (Complex spreading):**
-```js
-onRequest: async (context) => {
-  return {
-    request: {
-      ...context.request,
-      options: {
-        ...context.request.options,
-        headers: { 
-          ...context.request.options.headers, 
-          'X-Custom': 'value' 
-        }
-      }
-    }
-  };
-}
-```
-
-**After (Simple helpers):**
-```js
-onRequest: async (context) => {
-  context.setHeaders(headers => ({ ...headers, 'X-Custom': 'value' }));
-  context.setBody({ ...body, timestamp: Date.now() });
-}
-```
+<Cards>
+  <Card title="Hook Basics" href="/docs/hooks/basics" description="Understanding lifecycle hooks" />
+  <Card title="Helper Methods" href="/docs/hooks/helper-methods" description="Simplified hook API" />
+  <Card title="Error Handling" href="/docs/features/error-handling" description="Comprehensive error management" />
+</Cards>
 
 ## Explanation
 

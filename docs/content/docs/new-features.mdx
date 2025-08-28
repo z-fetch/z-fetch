@@ -1,52 +1,36 @@
 ---
-title: 🆕 New Features
-description: Latest enhancements in Z-Fetch including progress tracking, streaming, error handling, and simplified hooks.
+title: 🆕 New Features (Deprecated)
+description: This page has been reorganized into modular sections for better navigation.
 ---
 
-Z-Fetch has been significantly enhanced with powerful new features that improve developer experience and provide comprehensive error handling capabilities.
+<Callout title="Documentation Reorganized" type="warn">
+  This page has been split into modular sections for easier reading and navigation. Please use the new organized sections below.
+</Callout>
 
-## 🎯 Issues Fixed
+## 📚 New Modular Feature Documentation
 
-### Bearer Token Support (Issue #3)
-Fixed `bearerToken` option that was being ignored in request methods:
+The new features documentation has been reorganized into focused sections:
 
-```js
-// Now works as expected
-const result = await api.post('/endpoint', {
-  body: { data: 'value' },
-  bearerToken: token  // ✅ Automatically sets Authorization header
-});
-```
+### 🚀 Core Features
+- **[Progress Tracking](/docs/features/progress-tracking)** - Upload/download progress monitoring
+- **[Streaming Utilities](/docs/features/streaming)** - Response streaming and chunk processing  
+- **[Error Handling](/docs/features/error-handling)** - Comprehensive error management with onError hook
 
-### Instance Configuration (Issue #4)
-Fixed instance-level options like `withCredentials` not being applied to requests:
+### 🪝 Enhanced Hooks
+- **[Hook Basics](/docs/hooks/basics)** - Understanding lifecycle hooks
+- **[Helper Methods](/docs/hooks/helper-methods)** - Simplified hooks API with intuitive helper methods
 
-```js
-const api = createInstance({
-  baseUrl: 'https://api.example.com', 
-  withCredentials: true,  // ✅ Now properly sets credentials: 'include'
-  headers: { 'X-Custom': 'value' }  // ✅ Properly merged with request headers
-});
-```
+### ⚙️ Configuration
+- **[Configuration Options](/docs/configuration/options)** - Complete instance and request configuration guide
 
-### Error Mapping (Issue #5)
-Added custom error message mapping for better user experience:
+## Quick Navigation
 
-```js
-const api = createInstance({
-  errorMapping: {
-    401: 'Authentication failed - please sign in again',
-    403: 'Access denied - insufficient permissions', 
-    404: 'Resource not found',
-    'fetch failed': 'Network connection failed'
-  }
-});
-```
-
-## 🚀 New Features
-
-### Simplified Hooks API (Issue #1)
-Replaced complex spreading patterns with intuitive helper methods:
+<Cards>
+  <Card title="Progress Tracking" href="/docs/features/progress-tracking" description="Upload/download progress" />
+  <Card title="Streaming" href="/docs/features/streaming" description="Response streaming utilities" />
+  <Card title="Error Handling" href="/docs/features/error-handling" description="Comprehensive error management" />
+  <Card title="Helper Methods" href="/docs/hooks/helper-methods" description="Simplified hooks API" />
+</Cards>
 
 ```js
 // Before: Complex and error-prone
