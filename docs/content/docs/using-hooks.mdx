@@ -1,24 +1,65 @@
 ---
 title: 💪 Using Hooks
-description: Hooks allow you to hook into the request lifecycle.
+description: Hooks allow you to hook into the request lifecycle with powerful helper methods.
 ---
 
 <Callout title="Looking for interceptors?" type="warn">
 You want to hook into some lifecycle, great, they're called hooks!
 </Callout>
 
-Hooks are a powerful feature that allow you to hook into the request lifecycle in order to intercept it and modify the request or response. Hooks can be used to implement features such as authentication, logging, custom caching, and more.
+Hooks are a powerful feature that allow you to hook into the request lifecycle in order to intercept it and modify the request or response. Hooks can be used to implement features such as authentication, logging, custom caching, error handling, and more.
 
 This is a common pattern in fetch libraries and so you can use it in kinda similar use cases.
+
+## ✨ New Simplified Hooks API
+
+Z-Fetch now provides **intuitive helper methods** to make hooks much easier to work with, eliminating complex spreading patterns:
+
+### Helper Methods Available
+
+- `setHeaders(updater)` - Easily modify headers
+- `setBody(body)` - Set request body  
+- `setOptions(updater)` - Update request options
+- `setUrl(url)` - Change request URL
+- `setMethod(method)` - Modify HTTP method
+- `setError(error)` - Set or modify errors (onError hook only)
+
+### Before vs After
+
+**Before (Complex spreading):**
+```js
+onRequest: async (context) => {
+  return {
+    request: {
+      ...context.request,
+      options: {
+        ...context.request.options,
+        headers: { 
+          ...context.request.options.headers, 
+          'X-Custom': 'value' 
+        }
+      }
+    }
+  };
+}
+```
+
+**After (Simple helpers):**
+```js
+onRequest: async (context) => {
+  context.setHeaders(headers => ({ ...headers, 'X-Custom': 'value' }));
+  context.setBody({ ...body, timestamp: Date.now() });
+}
+```
 
 ## Explanation
 
 1. Each hook is set when setting up your instance
 2. Each hook's value is a callback which has a context in it's argument.
 3. The context has the request, result and config of the instance at runtime.
-4. You can modify and return your modified config, request or result respectively.
-5. Basically, you return the modified context or a partial of it you have modified.
-6. The modification is what will be applied to the request or response accordingly.
+4. You can modify using **helper methods** or by returning the modified context.
+5. Helper methods provide a clean, intuitive way to make common modifications.
+6. You can still use the traditional return approach for complex scenarios.
 
 ### The context object has the following properties:
 
@@ -32,9 +73,13 @@ This is Z-fetch result including `data`, `error`, `response` and other propertie
 
 C) config: The configuration object that is being used.
 
+D) Helper methods: `setHeaders()`, `setBody()`, `setOptions()`, `setUrl()`, `setMethod()`, `setError()`
+
 -> Tip: you can always just pick only what you want to modify, and then return that after modifying it.
 
-### Request Hooks
+## Available Hooks
+
+### onRequest Hook
 
 Request hooks allow you to modify the request before it's sent:
 
@@ -42,28 +87,29 @@ Request hooks allow you to modify the request before it's sent:
 const api = createInstance({
   baseUrl: 'https://jsonplaceholder.typicode.com',
   hooks: {
-    onRequest: async ({ request }) => {
-      console.log('Request about to be sent:', request);
+    onRequest: async (context) => {
+      console.log('Request about to be sent:', context.request);
 
-      // Add a custom query parameter to all GET requests
-      if (request.method === 'GET') {
-        return {
-          request: {
-            ...request,
-            url: request.url + '?custom=true',
-          },
-        };
+      // Using helper methods (recommended)
+      if (context.request.method === 'GET') {
+        context.setUrl(context.request.url + '?custom=true');
       }
 
-      // Add a timestamp to all requests
+      // Add timestamp header easily
+      context.setHeaders(headers => ({
+        ...headers,
+        'X-Timestamp': Date.now().toString()
+      }));
+
+      // Or traditional return approach
       return {
         request: {
-          ...request,
+          ...context.request,
           options: {
-            ...request.options,
+            ...context.request.options,
             headers: {
-              ...request.options.headers,
-              'X-Timestamp': Date.now().toString()
+              ...context.request.options.headers,
+              'X-Traditional': 'value'
             }
           }
         }
@@ -73,7 +119,7 @@ const api = createInstance({
 });
 ```
 
-### Response Hooks
+### onResponse Hook
 
 Response hooks allow you to modify the response before it's returned:
 
@@ -104,29 +150,68 @@ const api = createInstance({
 });
 ```
 
-### Combining Request and Response Hooks
+### 🆕 onError Hook
 
-You can use both request and response hooks together:
+The new **onError hook** intercepts all error types and allows you to modify error messages and status codes:
 
 ```js
 const api = createInstance({
-  baseUrl: 'https://jsonplaceholder.typicode.com',
+  baseUrl: 'https://api.example.com',
   hooks: {
-    onRequest: async ({ request }) => {
-      // Add authentication header
+    onError: (context) => {
+      console.log('Error occurred:', context.error);
+      
+      // Using helper method (recommended)
+      context.setError({
+        message: 'User-friendly error message',
+        status: context.error?.status || 'UNKNOWN'
+      });
+      
+      // Or traditional return approach
       return {
-        request: {
-          ...request,
-          options: {
-            ...request.options,
-            headers: {
-              ...request.options.headers,
-              'Authorization': 'Bearer your-token-here'
-            }
-          }
+        error: { 
+          message: 'Custom message', 
+          status: 'CUSTOM_ERROR' 
         }
       };
+    }
+  }
+});
+```
+
+**onError Hook Features:**
+- **Complete coverage**: HTTP errors, network failures, timeouts, parse errors
+- **Error modification**: Change error messages and status codes using `setError()`
+- **Context access**: Full request details, configuration, and error information
+- **Integration**: Works with error mapping and alongside other hooks
+
+### Combining All Hooks
+
+You can use all three hooks together for comprehensive request/response processing:
+
+```js
+const api = createInstance({
+  baseUrl: 'https://api.example.com',
+  hooks: {
+    onRequest: async (context) => {
+      // Add authentication using helper method
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        context.setHeaders(headers => ({
+          ...headers,
+          'Authorization': `Bearer ${token}`
+        }));
+      }
+      
+      // Add timestamp to request body
+      if (context.request.options.body && typeof context.request.options.body === 'object') {
+        context.setBody({
+          ...context.request.options.body,
+          timestamp: Date.now()
+        });
+      }
     },
+    
     onResponse: async ({ result }) => {
       // Process successful responses
       if (result?.data && !result.error) {
@@ -140,58 +225,55 @@ const api = createInstance({
           }
         };
       }
-
-      // Handle errors
-      if (result?.error) {
-        console.error('API Error:', result.error);
-        // You could transform error formats here
-      }
-
       return { result };
+    },
+    
+    onError: (context) => {
+      // Handle different error types
+      if (context.error?.status === 401) {
+        localStorage.removeItem('auth_token');
+        context.setError({
+          message: 'Session expired. Please login again.',
+          status: 'AUTHENTICATION_FAILED'
+        });
+      } else if (context.error?.status === 'NETWORK_ERROR') {
+        context.setError({
+          message: 'Connection failed. Please check your internet.',
+          status: 'CONNECTION_ERROR'
+        });
+      }
     }
   }
 });
 ```
 
-### Real-World Example: Authentication and Logging
+### Real-World Example: Complete Request Lifecycle
 
 ```js
 const api = createInstance({
   baseUrl: 'https://api.example.com',
   hooks: {
-    onRequest: async ({ request }) => {
+    onRequest: async (context) => {
       // Log all outgoing requests
-      console.log(`[${new Date().toISOString()}] Sending ${request.method} request to ${request.url}`);
+      console.log(`[${new Date().toISOString()}] Sending ${context.request.method} request to ${context.request.url}`);
 
       // Add authentication token from localStorage
       const token = localStorage.getItem('auth_token');
       if (token) {
-        return {
-          request: {
-            ...request,
-            options: {
-              ...request.options,
-              headers: {
-                ...request.options.headers,
-                'Authorization': `Bearer ${token}`
-              }
-            }
-          }
-        };
+        context.setHeaders(headers => ({
+          ...headers,
+          'Authorization': `Bearer ${token}`
+        }));
       }
 
-      return { request };
+      // Add request ID for tracking
+      context.setHeaders(headers => ({
+        ...headers,
+        'X-Request-ID': crypto.randomUUID()
+      }));
     },
+    
     onResponse: async ({ result, config }) => {
-      // Handle 401 Unauthorized errors
-      if (result?.error && result.error.status === 401) {
-        // Clear invalid token
-        localStorage.removeItem('auth_token');
-
-        // Redirect to login page
-        window.location.href = '/login';
-      }
-
       // Add metadata to successful responses
       if (result?.data) {
         return {
@@ -207,13 +289,66 @@ const api = createInstance({
           }
         };
       }
-
       return { result };
+    },
+    
+    onError: (context) => {
+      // Handle authentication errors
+      if (context.error?.status === 401) {
+        localStorage.removeItem('auth_token');
+        window.location.href = '/login';
+        context.setError({
+          message: 'Authentication failed. Redirecting to login...',
+          status: 'AUTH_REQUIRED'
+        });
+      }
+      
+      // Handle server errors
+      if (context.error?.status >= 500) {
+        context.setError({
+          message: 'Server error. Please try again later.',
+          status: 'SERVER_ERROR'
+        });
+      }
+      
+      // Handle network errors
+      if (context.error?.status === 'NETWORK_ERROR') {
+        context.setError({
+          message: 'Network connection failed. Please check your internet connection.',
+          status: 'CONNECTION_FAILED'
+        });
+      }
     }
   }
 });
 ```
 
-With these powerful hooks, you can implement complex request/response processing, authentication flows, logging, error handling, and data transformation in a clean and reusable way.
+## Migration Guide
 
-Any more hooks you think would be useful? Feel free to suggest them!
+If you're using the old spreading patterns, you can easily migrate to the new helper methods:
+
+**Old approach:**
+```js
+onRequest: async (context) => {
+  return {
+    request: {
+      ...context.request,
+      options: {
+        ...context.request.options,
+        headers: { ...context.request.options.headers, 'X-Auth': token }
+      }
+    }
+  };
+}
+```
+
+**New approach:**
+```js
+onRequest: async (context) => {
+  context.setHeaders(headers => ({ ...headers, 'X-Auth': token }));
+}
+```
+
+The new helper methods are cleaner, less error-prone, and more intuitive while maintaining full backwards compatibility.
+
+With these powerful hooks and helper methods, you can implement complex request/response processing, authentication flows, logging, error handling, and data transformation in a clean and reusable way.

@@ -213,7 +213,131 @@ const customRequest = async () => {
 
 ## More Advanced Features
 
-Z-Fetch also exposes methods for polling, caching, request cancellation, and refetching:
+Z-Fetch also exposes methods for polling, caching, request cancellation, refetching, **progress tracking**, and **streaming**:
+
+### 🆕 Upload/Download Progress Tracking
+
+Z-Fetch automatically uses XMLHttpRequest when progress callbacks are provided, with seamless fallback to fetch:
+
+```js
+import { POST, GET } from '@z-fetch/fetch';
+
+// Upload progress tracking
+const uploadFile = async () => {
+  const formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+
+  const { data, error } = await POST('https://api.example.com/upload', {
+    body: formData,
+    onUploadProgress: (event) => {
+      const percentage = Math.round((event.loaded / event.total) * 100);
+      console.log(`Upload progress: ${percentage}%`);
+      updateProgressBar(percentage);
+    }
+  });
+
+  if (data) {
+    console.log('Upload complete!', data);
+  }
+};
+
+// Download progress tracking
+const downloadFile = async () => {
+  const { data, error } = await GET('https://api.example.com/download/large-file.zip', {
+    onDownloadProgress: (event) => {
+      const percentage = Math.round((event.loaded / event.total) * 100);
+      console.log(`Download progress: ${percentage}%`);
+      updateDownloadBar(percentage);
+    }
+  });
+
+  if (data) {
+    console.log('Download complete!');
+  }
+};
+
+// Combined upload and download progress
+const processFile = async () => {
+  const { data, error } = await POST('https://api.example.com/process', {
+    body: formData,
+    onUploadProgress: (event) => {
+      console.log(`Uploading: ${Math.round(event.loaded/event.total*100)}%`);
+    },
+    onDownloadProgress: (event) => {
+      console.log(`Processing: ${Math.round(event.loaded/event.total*100)}%`);
+    }
+  });
+};
+```
+
+### 🆕 Response Streaming Utilities
+
+Z-Fetch provides powerful streaming utilities for working with response streams:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const processStreamData = async () => {
+  const result = await GET('https://api.example.com/stream-data');
+
+  // Stream to string
+  if (result.streamToString) {
+    const textData = await result.streamToString();
+    console.log('Streamed text:', textData);
+  }
+
+  // Stream to blob (for files, images, etc.)
+  if (result.streamToBlob) {
+    const blobData = await result.streamToBlob();
+    const imageUrl = URL.createObjectURL(blobData);
+    document.getElementById('image').src = imageUrl;
+  }
+
+  // Stream to array buffer (for binary data)
+  if (result.streamToArrayBuffer) {
+    const bufferData = await result.streamToArrayBuffer();
+    processArrayBuffer(bufferData);
+  }
+
+  // Process stream chunks as they arrive
+  if (result.streamChunks) {
+    await result.streamChunks((chunk) => {
+      console.log('Received chunk:', chunk);
+      processDataChunk(chunk);
+    });
+  }
+};
+
+// Real-world streaming example: Processing large datasets
+const processLargeDataset = async () => {
+  const result = await GET('https://api.example.com/large-dataset');
+  
+  let processedRecords = 0;
+  
+  await result.streamChunks((chunk) => {
+    // Process chunk data as it arrives
+    const textChunk = new TextDecoder().decode(chunk);
+    const records = textChunk.split('\n').filter(line => line.trim());
+    
+    records.forEach(record => {
+      processRecord(JSON.parse(record));
+      processedRecords++;
+    });
+    
+    console.log(`Processed ${processedRecords} records so far...`);
+  });
+  
+  console.log(`Total processed: ${processedRecords} records`);
+};
+```
+
+**Streaming Features:**
+- **`streamToString()`** - Convert response stream to string
+- **`streamToBlob()`** - Convert response stream to Blob (for files/media)
+- **`streamToArrayBuffer()`** - Convert response stream to ArrayBuffer (for binary data)
+- **`streamChunks(callback)`** - Process stream chunks as they arrive
+- **Automatic resource cleanup** and error handling
+- **Works with both fetch and XMLHttpRequest** modes
 
 ### Polling
 
