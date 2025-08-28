@@ -409,7 +409,10 @@ async function request(url, method, options = { ...defaultConfig }) {
     }
   };
   const streamChunks = async (callback) => {
-    if (!result.response || !result.response.body) {
+    if (!result.response) {
+      throw new Error("No response available for streaming");
+    }
+    if (!result.response.body) {
       throw new Error("No response body available for streaming");
     }
     try {

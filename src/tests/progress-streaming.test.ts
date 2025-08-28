@@ -372,8 +372,9 @@ describe('Progress and Streaming Support Tests', () => {
         status: 200,
         blob: vi.fn().mockResolvedValue(testBlob),
         body: new ReadableStream(),
-        json: vi.fn(),
-        text: vi.fn()
+        json: vi.fn().mockResolvedValue({ success: true }),
+        text: vi.fn().mockResolvedValue('test string'),
+        clone: function() { return this; }
       };
       global.fetch = vi.fn().mockResolvedValue(mockResponse);
 
@@ -396,7 +397,7 @@ describe('Progress and Streaming Support Tests', () => {
         ok: true,
         status: 200,
         statusText: 'OK',
-        text: vi.fn(),
+        text: vi.fn().mockResolvedValue('test string'),
         json: vi.fn().mockResolvedValue({ success: true }),
         blob: vi.fn(),
         arrayBuffer: vi.fn().mockResolvedValue(testBuffer),
@@ -444,7 +445,7 @@ describe('Progress and Streaming Support Tests', () => {
         ok: true,
         status: 200,
         statusText: 'OK',
-        text: vi.fn(),
+        text: vi.fn().mockResolvedValue('test string'),
         json: vi.fn().mockResolvedValue({ success: true }),
         blob: vi.fn(),
         arrayBuffer: vi.fn(),

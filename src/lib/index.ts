@@ -598,7 +598,10 @@ async function request(
   };
 
   const streamChunks = async (callback: (chunk: Uint8Array) => void): Promise<void> => {
-    if (!result.response || !result.response.body) {
+    if (!result.response) {
+      throw new Error('No response available for streaming');
+    }
+    if (!result.response.body) {
       throw new Error('No response body available for streaming');
     }
     
