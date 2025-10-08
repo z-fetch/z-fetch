@@ -26,11 +26,16 @@ var defaultConfig = {
 };
 var config = { ...defaultConfig };
 var cache = /* @__PURE__ */ new Map();
-async function requestWithProgress(url, method, options = { ...defaultConfig }, context) {
+async function requestWithProgress(url, method, options = { ...defaultConfig }, context, signal) {
   return new Promise((resolve) => {
     const mergedConfig = { ...config, ...options };
     let fullUrl = mergedConfig.baseUrl ? mergedConfig.baseUrl + url : url;
     const xhr = new XMLHttpRequest();
+    if (signal) {
+      signal.addEventListener("abort", () => {
+        xhr.abort();
+      });
+    }
     if (mergedConfig.onUploadProgress && xhr.upload) {
       xhr.upload.addEventListener("progress", mergedConfig.onUploadProgress);
     }
@@ -171,6 +176,20 @@ async function requestWithProgress(url, method, options = { ...defaultConfig }, 
         response: null
       });
     });
+    xhr.addEventListener("abort", async () => {
+      let error = {
+        message: "Request canceled",
+        status: "CANCELED"
+      };
+      const handledError = await handleError(error);
+      error = handledError || error;
+      resolve({
+        loading: false,
+        error,
+        data: null,
+        response: null
+      });
+    });
     xhr.open(method, fullUrl);
     xhr.timeout = mergedConfig.timeout;
     const headers = { ...config.headers, ...options.headers || {} };
@@ -194,29 +213,24 @@ async function requestWithProgress(url, method, options = { ...defaultConfig }, 
     xhr.send(body);
   });
 }
-async function request(url, method, options = { ...defaultConfig }) {
+function request(url, method, options = { ...defaultConfig }) {
   const abortController = new AbortController();
   const { signal } = abortController;
-  let loading = true;
-  let error = null;
-  let data = null;
-  let retryCount = 0;
   const mergedConfig = { ...config, ...options };
   let fullUrl = mergedConfig.baseUrl ? mergedConfig.baseUrl + url : url;
   const shouldUseXHR = mergedConfig.useXHRForProgress || mergedConfig.onUploadProgress || mergedConfig.onDownloadProgress;
-  const timeoutId = setTimeout(() => {
+  let pollingIntervalId = null;
+  let pollCallback = null;
+  const cancelRequest = () => {
     abortController.abort();
-    loading = true;
-    error = { message: "Request timed out!", status: "TIMEOUT" };
-  }, mergedConfig.timeout);
-  const performRequest = async () => {
-    if (shouldUseXHR) {
-      return await requestWithProgress(url, method, options, {
-        config: mergedConfig,
-        onError: mergedConfig.hooks?.onError
-      });
-    }
-    const handleError = async (error2) => {
+  };
+  const promise = new Promise(async (resolve) => {
+    let loading = true;
+    let error = null;
+    let data = null;
+    let retryCount = 0;
+    let timedOut = false;
+    const handleError = async (errObj) => {
       if (mergedConfig.hooks?.onError) {
         const errorContext = {
           config: mergedConfig,
@@ -226,7 +240,7 @@ async function request(url, method, options = { ...defaultConfig }) {
             options: mergedConfig
           },
           result: null,
-          error: error2,
+          error: errObj,
           setHeaders: () => {
           },
           setBody: () => {
@@ -238,242 +252,279 @@ async function request(url, method, options = { ...defaultConfig }) {
           setMethod: () => {
           },
           setError: (newError) => {
-            error2 = newError || error2;
+            errObj = newError || errObj;
           }
         };
         const patch = await mergedConfig.hooks.onError(errorContext);
         if (patch?.error !== void 0) {
-          error2 = patch.error || error2;
+          errObj = patch.error || errObj;
         }
       }
-      return error2;
+      return errObj;
     };
-    try {
-      const headers = { ...config.headers, ...options.headers || {} };
-      if (mergedConfig.bearerToken && !headers["Authorization"]) {
-        headers["Authorization"] = `Bearer ${mergedConfig.bearerToken}`;
+    const performRequest = async () => {
+      if (shouldUseXHR) {
+        return await requestWithProgress(
+          url,
+          method,
+          options,
+          {
+            config: mergedConfig,
+            onError: mergedConfig.hooks?.onError
+          },
+          signal
+        );
       }
-      let fetchOptions = {
-        signal,
-        method,
-        headers
-      };
-      if (mergedConfig.body !== void 0) {
-        if (typeof mergedConfig.body === "object" && mergedConfig.body !== null) {
-          fetchOptions.body = mergedConfig.stringifyPayload ? JSON.stringify(mergedConfig.body) : mergedConfig.body;
-        } else {
-          fetchOptions.body = mergedConfig.body;
+      try {
+        const headers = { ...config.headers, ...options.headers || {} };
+        if (mergedConfig.bearerToken && !headers["Authorization"]) {
+          headers["Authorization"] = `Bearer ${mergedConfig.bearerToken}`;
         }
-      }
-      if (mergedConfig.cache !== void 0)
-        fetchOptions.cache = mergedConfig.cache;
-      if (mergedConfig.credentials !== void 0)
-        fetchOptions.credentials = mergedConfig.credentials;
-      if (mergedConfig.withCredentials) fetchOptions.credentials = "include";
-      if (mergedConfig.integrity !== void 0)
-        fetchOptions.integrity = mergedConfig.integrity;
-      if (mergedConfig.keepalive !== void 0)
-        fetchOptions.keepalive = mergedConfig.keepalive;
-      if (mergedConfig.mode !== void 0)
-        fetchOptions.mode = mergedConfig.mode;
-      if (mergedConfig.redirect !== void 0)
-        fetchOptions.redirect = mergedConfig.redirect;
-      if (mergedConfig.referrer !== void 0)
-        fetchOptions.referrer = mergedConfig.referrer;
-      if (mergedConfig.referrerPolicy !== void 0)
-        fetchOptions.referrerPolicy = mergedConfig.referrerPolicy;
-      if (options.baseUrl) {
-        fullUrl = options.baseUrl + url;
-      }
-      const response = await fetch(fullUrl, fetchOptions);
-      if (!response.ok) {
-        const originalMessage = response.statusText;
-        let mappedMessage = originalMessage;
-        if (mergedConfig.errorMapping) {
-          if (mergedConfig.errorMapping[response.status]) {
-            mappedMessage = mergedConfig.errorMapping[response.status];
+        let fetchOptions = {
+          signal,
+          method,
+          headers
+        };
+        if (mergedConfig.body !== void 0) {
+          if (typeof mergedConfig.body === "object" && mergedConfig.body !== null) {
+            fetchOptions.body = mergedConfig.stringifyPayload ? JSON.stringify(mergedConfig.body) : mergedConfig.body;
           } else {
-            for (const [pattern, message] of Object.entries(
-              mergedConfig.errorMapping
-            )) {
-              if (typeof pattern === "string") {
-                if (pattern === response.status.toString()) {
-                  mappedMessage = message;
-                  break;
-                }
-                if (originalMessage.toLowerCase().includes(pattern.toLowerCase()) || response.status.toString().includes(pattern)) {
-                  mappedMessage = message;
-                  break;
+            fetchOptions.body = mergedConfig.body;
+          }
+        }
+        if (mergedConfig.cache !== void 0)
+          fetchOptions.cache = mergedConfig.cache;
+        if (mergedConfig.credentials !== void 0)
+          fetchOptions.credentials = mergedConfig.credentials;
+        if (mergedConfig.withCredentials) fetchOptions.credentials = "include";
+        if (mergedConfig.integrity !== void 0)
+          fetchOptions.integrity = mergedConfig.integrity;
+        if (mergedConfig.keepalive !== void 0)
+          fetchOptions.keepalive = mergedConfig.keepalive;
+        if (mergedConfig.mode !== void 0)
+          fetchOptions.mode = mergedConfig.mode;
+        if (mergedConfig.redirect !== void 0)
+          fetchOptions.redirect = mergedConfig.redirect;
+        if (mergedConfig.referrer !== void 0)
+          fetchOptions.referrer = mergedConfig.referrer;
+        if (mergedConfig.referrerPolicy !== void 0)
+          fetchOptions.referrerPolicy = mergedConfig.referrerPolicy;
+        if (options.baseUrl) {
+          fullUrl = options.baseUrl + url;
+        }
+        const timeoutId = setTimeout(() => {
+          timedOut = true;
+          abortController.abort();
+        }, mergedConfig.timeout);
+        const response = await fetch(fullUrl, fetchOptions);
+        clearTimeout(timeoutId);
+        if (!response.ok) {
+          const originalMessage = response.statusText;
+          let mappedMessage = originalMessage;
+          if (mergedConfig.errorMapping) {
+            if (mergedConfig.errorMapping[response.status]) {
+              mappedMessage = mergedConfig.errorMapping[response.status];
+            } else {
+              for (const [pattern, message] of Object.entries(
+                mergedConfig.errorMapping
+              )) {
+                if (typeof pattern === "string") {
+                  if (pattern === response.status.toString()) {
+                    mappedMessage = message;
+                    break;
+                  }
+                  if (originalMessage.toLowerCase().includes(pattern.toLowerCase()) || response.status.toString().includes(pattern)) {
+                    mappedMessage = message;
+                    break;
+                  }
                 }
               }
             }
           }
+          error = { message: mappedMessage, status: response.status };
+          error = await handleError(error);
+        } else {
+          const responseForData = response.clone();
+          data = mergedConfig.parseJson ? await responseForData.json() : await responseForData.text();
         }
-        error = { message: mappedMessage, status: response.status };
-        error = await handleError(error);
-      } else {
-        const responseForData = response.clone();
-        data = mergedConfig.parseJson ? await responseForData.json() : await responseForData.text();
-      }
-      clearTimeout(timeoutId);
-      loading = false;
-      return { loading, error, data, response };
-    } catch (err) {
-      let mappedMessage = err.message;
-      if (mergedConfig.errorMapping) {
-        for (const [pattern, message] of Object.entries(
-          mergedConfig.errorMapping
-        )) {
-          if (typeof pattern === "string") {
-            if (err.message.toLowerCase().includes(pattern.toLowerCase()) || pattern.toLowerCase() === "network_error" || pattern.toLowerCase() === "fetch failed") {
-              mappedMessage = message;
-              break;
+        loading = false;
+        return { loading, error, data, response };
+      } catch (err) {
+        let status = "NETWORK_ERROR";
+        let message = err?.message || "Network error";
+        if (signal.aborted) {
+          if (timedOut) {
+            message = "Request timed out!";
+            status = "TIMEOUT";
+          } else {
+            message = "Request canceled";
+            status = "CANCELED";
+          }
+        }
+        if (status === "NETWORK_ERROR" && mergedConfig.errorMapping && typeof message === "string") {
+          for (const [pattern, mapped] of Object.entries(
+            mergedConfig.errorMapping
+          )) {
+            if (typeof pattern === "string") {
+              if (message.toLowerCase().includes(pattern.toLowerCase()) || pattern.toLowerCase() === "network_error" || pattern.toLowerCase() === "fetch failed") {
+                message = mapped;
+                break;
+              }
             }
           }
         }
+        let errObj = { message, status };
+        errObj = await handleError(errObj) || errObj;
+        loading = false;
+        return { loading, error: errObj, data, response: null };
       }
-      error = { message: mappedMessage, status: "NETWORK_ERROR" };
-      error = await handleError(error);
-      clearTimeout(timeoutId);
-      loading = false;
-      return { loading, error, data, response: null };
+    };
+    const refetch = async (callback) => {
+      const newData = await performRequest();
+      return callback({
+        ...newData,
+        refetch,
+        cancelRequest,
+        startPolling,
+        stopPolling,
+        onPollDataReceived
+      });
+    };
+    const stopPolling = () => {
+      if (pollingIntervalId) {
+        clearInterval(pollingIntervalId);
+        pollingIntervalId = null;
+      }
+    };
+    const onPollDataReceived = (callback) => {
+      if (typeof callback !== "function") {
+        throw new Error("onPollDataReceived callback must be a function");
+      }
+      pollCallback = callback;
+      if (mergedConfig.startPolling && !pollingIntervalId) {
+        startPolling();
+      }
+    };
+    const startPolling = (interval = mergedConfig.pollingInterval) => {
+      if (!pollCallback) {
+        console.warn(
+          "Polling not started: onPollDataReceived callback not set"
+        );
+        return;
+      }
+      if (pollingIntervalId) {
+        stopPolling();
+      }
+      pollingIntervalId = setInterval(async () => {
+        try {
+          const newResult = await performRequest();
+          pollCallback(newResult);
+          Object.assign(result, newResult);
+        } catch (pollError) {
+          console.error("Polling error:", pollError);
+        }
+      }, interval);
+    };
+    let result = await performRequest();
+    while (mergedConfig.retry && retryCount < mergedConfig.maxRetries && result.error) {
+      retryCount++;
+      result = await performRequest();
     }
-  };
-  const refetch = async (callback) => {
-    const newData = await performRequest();
-    return callback({
-      ...newData,
-      refetch,
-      cancelRequest,
-      startPolling,
-      stopPolling,
-      onPollDataReceived
-    });
-  };
-  const cancelRequest = () => {
-    abortController.abort();
-  };
-  let result = await performRequest();
-  while (config.retry && retryCount < config.maxRetries && result.error) {
-    retryCount++;
-    result = await performRequest();
-  }
-  let pollingIntervalId = null;
-  let pollCallback = null;
-  const stopPolling = () => {
-    if (pollingIntervalId) {
-      clearInterval(pollingIntervalId);
-      pollingIntervalId = null;
-    }
-  };
-  const onPollDataReceived = (callback) => {
-    if (typeof callback !== "function") {
-      throw new Error("onPollDataReceived callback must be a function");
-    }
-    pollCallback = callback;
-    if (config.startPolling && !pollingIntervalId) {
-      startPolling();
-    }
-  };
-  const startPolling = (interval = config.pollingInterval) => {
-    if (!pollCallback) {
-      console.warn("Polling not started: onPollDataReceived callback not set");
+    const streamToString = async () => {
+      if (!result.response) {
+        throw new Error("No response available for streaming");
+      }
+      if (typeof result.response.text !== "function") {
+        throw new Error("No response body available for streaming");
+      }
+      try {
+        return await result.response.text();
+      } catch {
+        throw new Error("Failed to read response as text");
+      }
+    };
+    const streamToBlob = async () => {
+      if (!result.response) {
+        throw new Error("No response available for streaming");
+      }
+      if (typeof result.response.blob !== "function") {
+        throw new Error("No response body available for streaming");
+      }
+      try {
+        return await result.response.blob();
+      } catch {
+        throw new Error("Failed to read response as blob");
+      }
+    };
+    const streamToArrayBuffer = async () => {
+      if (!result.response) {
+        throw new Error("No response available for streaming");
+      }
+      if (typeof result.response.arrayBuffer !== "function") {
+        throw new Error("No response body available for streaming");
+      }
+      try {
+        return await result.response.arrayBuffer();
+      } catch {
+        throw new Error("Failed to read response as array buffer");
+      }
+    };
+    const streamChunks = async (callback) => {
+      if (!result.response) {
+        throw new Error("No response available for streaming");
+      }
+      if (!result.response.body) {
+        throw new Error("No response body available for streaming");
+      }
+      try {
+        const reader = result.response.body.getReader();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            callback(value);
+          }
+        } finally {
+          reader.releaseLock();
+        }
+      } catch {
+        throw new Error("Failed to read response stream");
+      }
+    };
+    const cacheKey = `${method}:${fullUrl}`;
+    if (mergedConfig.withCache && method === "GET" && cache.has(cacheKey)) {
+      setTimeout(() => {
+        performRequest().then((newResult) => {
+          if (!newResult.error) {
+            cache.set(cacheKey, {
+              ...newResult,
+              refetch,
+              cancelRequest,
+              startPolling,
+              stopPolling,
+              onPollDataReceived
+            });
+          }
+        });
+      }, mergedConfig.revalidateCache);
+      resolve(cache.get(cacheKey));
       return;
     }
-    if (pollingIntervalId) {
-      stopPolling();
-    }
-    pollingIntervalId = setInterval(async () => {
-      try {
-        const newResult = await performRequest();
-        pollCallback(newResult);
-        Object.assign(result, newResult);
-      } catch (pollError) {
-        console.error("Polling error:", pollError);
-      }
-    }, interval);
-  };
-  const streamToString = async () => {
-    if (!result.response) {
-      throw new Error("No response available for streaming");
-    }
-    if (typeof result.response.text !== "function") {
-      throw new Error("No response body available for streaming");
-    }
-    try {
-      return await result.response.text();
-    } catch {
-      throw new Error("Failed to read response as text");
-    }
-  };
-  const streamToBlob = async () => {
-    if (!result.response) {
-      throw new Error("No response available for streaming");
-    }
-    if (typeof result.response.blob !== "function") {
-      throw new Error("No response body available for streaming");
-    }
-    try {
-      return await result.response.blob();
-    } catch {
-      throw new Error("Failed to read response as blob");
-    }
-  };
-  const streamToArrayBuffer = async () => {
-    if (!result.response) {
-      throw new Error("No response available for streaming");
-    }
-    if (typeof result.response.arrayBuffer !== "function") {
-      throw new Error("No response body available for streaming");
-    }
-    try {
-      return await result.response.arrayBuffer();
-    } catch {
-      throw new Error("Failed to read response as array buffer");
-    }
-  };
-  const streamChunks = async (callback) => {
-    if (!result.response) {
-      throw new Error("No response available for streaming");
-    }
-    if (!result.response.body) {
-      throw new Error("No response body available for streaming");
-    }
-    try {
-      const reader = result.response.body.getReader();
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          callback(value);
-        }
-      } finally {
-        reader.releaseLock();
-      }
-    } catch {
-      throw new Error("Failed to read response stream");
-    }
-  };
-  const cacheKey = `${method}:${fullUrl}`;
-  if (config.withCache && method === "GET" && cache.has(cacheKey)) {
-    setTimeout(() => {
-      performRequest().then((newResult) => {
-        if (!newResult.error) {
-          cache.set(cacheKey, {
-            ...newResult,
-            refetch,
-            cancelRequest,
-            startPolling,
-            stopPolling,
-            onPollDataReceived
-          });
-        }
+    if (mergedConfig.withCache && method === "GET" && !result.error) {
+      cache.set(cacheKey, {
+        ...result,
+        refetch,
+        cancelRequest,
+        startPolling,
+        stopPolling,
+        onPollDataReceived,
+        streamToString,
+        streamToBlob,
+        streamToArrayBuffer,
+        streamChunks
       });
-    }, config.revalidateCache);
-    return cache.get(cacheKey);
-  }
-  if (config.withCache && method === "GET" && !result.error) {
-    cache.set(cacheKey, {
+    }
+    resolve({
       ...result,
       refetch,
       cancelRequest,
@@ -485,19 +536,9 @@ async function request(url, method, options = { ...defaultConfig }) {
       streamToArrayBuffer,
       streamChunks
     });
-  }
-  return {
-    ...result,
-    refetch,
-    cancelRequest,
-    startPolling,
-    stopPolling,
-    onPollDataReceived,
-    streamToString,
-    streamToBlob,
-    streamToArrayBuffer,
-    streamChunks
-  };
+  });
+  promise.cancel = cancelRequest;
+  return promise;
 }
 function GET(url, options) {
   return request(url, "GET", options);
@@ -529,7 +570,7 @@ function CUSTOM(url, method, options) {
 function createInstance(instanceConfig = {}) {
   const instanceConfigWithDefaults = { ...defaultConfig, ...instanceConfig };
   const { onRequest, onResponse, onError } = instanceConfigWithDefaults.hooks || {};
-  const interceptor = async (method, url, options) => {
+  const interceptor = (method, url, options) => {
     let context = {
       config: instanceConfigWithDefaults,
       request: {
@@ -549,18 +590,18 @@ function createInstance(instanceConfig = {}) {
       // Helper methods for easier manipulation
       setHeaders: (updater) => {
         const currentHeaders = context.request.options.headers || {};
-        const result2 = updater(currentHeaders);
-        if (result2) {
-          context.request.options.headers = result2;
+        const result = updater(currentHeaders);
+        if (result) {
+          context.request.options.headers = result;
         }
       },
       setBody: (body) => {
         context.request.options.body = body;
       },
       setOptions: (updater) => {
-        const result2 = updater(context.request.options);
-        if (result2) {
-          context.request.options = result2;
+        const result = updater(context.request.options);
+        if (result) {
+          context.request.options = result;
         }
       },
       setUrl: (url2) => {
@@ -602,18 +643,18 @@ function createInstance(instanceConfig = {}) {
       };
       updated.setHeaders = (updater) => {
         const currentHeaders = updated.request.options.headers || {};
-        const result2 = updater(currentHeaders);
-        if (result2) {
-          updated.request.options.headers = result2;
+        const result = updater(currentHeaders);
+        if (result) {
+          updated.request.options.headers = result;
         }
       };
       updated.setBody = (body) => {
         updated.request.options.body = body;
       };
       updated.setOptions = (updater) => {
-        const result2 = updater(updated.request.options);
-        if (result2) {
-          updated.request.options = result2;
+        const result = updater(updated.request.options);
+        if (result) {
+          updated.request.options = result;
         }
       };
       updated.setUrl = (url2) => {
@@ -627,24 +668,36 @@ function createInstance(instanceConfig = {}) {
       };
       return updated;
     };
-    if (onRequest) {
-      const patch2 = await onRequest(context);
-      if (patch2) {
-        context = applyPatch(context, patch2);
+    let basePromise = null;
+    const runner = async () => {
+      if (onRequest) {
+        const patch2 = await onRequest(context);
+        if (patch2) {
+          context = applyPatch(context, patch2);
+        }
       }
-    }
-    const result = await request(context.request.url, context.request.method, {
-      ...context.request.options,
-      hooks: { onError }
+      basePromise = request(context.request.url, context.request.method, {
+        ...context.request.options,
+        hooks: { onError }
+      });
+      const result = await basePromise;
+      context.result = result;
+      if (onResponse) {
+        const patch2 = await onResponse(context);
+        if (patch2) {
+          context = applyPatch(context, patch2);
+        }
+      }
+      return context.result;
+    };
+    const promise = new Promise(async (resolve) => {
+      const res = await runner();
+      resolve(res);
     });
-    context.result = result;
-    if (onResponse) {
-      const patch2 = await onResponse(context);
-      if (patch2) {
-        context = applyPatch(context, patch2);
-      }
-    }
-    return context.result;
+    promise.cancel = () => {
+      basePromise?.cancel();
+    };
+    return promise;
   };
   const createMethod = (method) => {
     return (url, options) => interceptor(method, url, options || {});

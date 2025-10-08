@@ -1,5 +1,5 @@
 ---
-title: ⚡ Z-Fetch
+title: Z-Fetch
 description: The pragmatic native fetch API wrapper for JavaScript with progress tracking, streaming, and comprehensive error handling.
 ---
 
@@ -7,9 +7,11 @@ Z-Fetch is a simple practical native fetch wrapper that arguments and enhances f
 
 It offers simple type safe utilities with no dependencies and complexity and can work in any most JavaScript framework or environments here fetch is available with no additional setup needed.
 
-## 🆕 Latest Features
+## Latest Features
 
-**Progress Tracking & Streaming**: Upload/download progress callbacks with automatic XMLHttpRequest switching and powerful streaming utilities for processing response data.
+**Upload/Download Progress**: Track uploads and downloads via `onUploadProgress`/`onDownloadProgress`; automatically switches to XMLHttpRequest when needed.
+
+**Streaming Utilities**: `streamToString()`, `streamToBlob()`, `streamToArrayBuffer()`, and `streamChunks(callback)` for processing response streams efficiently.
 
 **Simplified Hooks API**: Intuitive helper methods (`setHeaders`, `setBody`, `setOptions`) that eliminate complex spreading patterns.
 
@@ -17,7 +19,7 @@ It offers simple type safe utilities with no dependencies and complexity and can
 
 **Enhanced Instance Configuration**: Fixed bearer token support, credentials handling, and proper option merging.
 
-## ▶️ Installation
+## Installation
 
 ```bash
 npm install @z-fetch/fetch
@@ -25,30 +27,74 @@ npm install @z-fetch/fetch
 
 And you can use it in 2 ways, by cherry-picking the methods you want or setting up an instance with some configuration options very useful for large applications or complex projects.
 
-## 📚 Documentation Sections
+## Documentation Sections
 
-### 🚀 HTTP Methods
+### HTTP Methods
+
 <Cards>
-  <Card title="Basic Requests" href="/docs/methods/basic-requests" description="GET, POST, PUT, DELETE, PATCH" />
-  <Card title="Advanced Methods" href="/docs/methods/advanced-methods" description="OPTIONS, TRACE, HEAD, CUSTOM" />
+  <Card
+    title="Basic Requests"
+    href="/docs/methods/basic-requests"
+    description="GET, POST, PUT, DELETE, PATCH"
+  />
+  <Card
+    title="Advanced Methods"
+    href="/docs/methods/advanced-methods"
+    description="OPTIONS, TRACE, HEAD, CUSTOM"
+  />
 </Cards>
 
-### 🆕 New Features  
+### New Features
+
 <Cards>
-  <Card title="Progress Tracking" href="/docs/features/progress-tracking" description="Upload/download progress monitoring" />
-  <Card title="Streaming" href="/docs/features/streaming" description="Response streaming utilities" />
-  <Card title="Error Handling" href="/docs/features/error-handling" description="Comprehensive error management" />
+  <Card
+    title="Upload/Download Progress"
+    href="/docs/features/progress-tracking"
+    description="Monitor upload and download progress"
+  />
+  <Card
+    title="Streaming Utilities"
+    href="/docs/features/streaming"
+    description="Process response streams efficiently"
+  />
+  <Card
+    title="Error Handling"
+    href="/docs/features/error-handling"
+    description="Comprehensive error management"
+  />
 </Cards>
 
-### 🪝 Hooks & Configuration
+### Hooks & Configuration
+
 <Cards>
-  <Card title="Hook Basics" href="/docs/hooks/basics" description="Understanding lifecycle hooks" />
-  <Card title="Helper Methods" href="/docs/hooks/helper-methods" description="Simplified hook API" />
-  <Card title="Configuration" href="/docs/configuration/options" description="Instance and request options" />
+  <Card
+    title="Hook Basics"
+    href="/docs/hooks/basics"
+    description="Understanding lifecycle hooks"
+  />
+  <Card
+    title="Helper Methods"
+    href="/docs/hooks/helper-methods"
+    description="Simplified hook API"
+  />
+  <Card
+    title="Configuration"
+    href="/docs/configuration/options"
+    description="Instance and request options"
+  />
 </Cards>
 
-### 📖 Getting Started
+### Getting Started
+
 <Cards>
-  <Card title="Setting Up Instance" href="/docs/create-instance" description="Instance creation and setup" />
-  <Card title="Instance Options" href="/docs/create-instance-options" description="Available configuration options" />
+  <Card
+    title="Setting Up Instance"
+    href="/docs/create-instance"
+    description="Instance creation and setup"
+  />
+  <Card
+    title="Instance Options"
+    href="/docs/create-instance-options"
+    description="Available configuration options"
+  />
 </Cards>

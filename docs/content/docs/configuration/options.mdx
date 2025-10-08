@@ -1,5 +1,5 @@
 ---
-title: ⚙️ Configuration Options
+title: Configuration Options
 description: Complete guide to instance configuration options and request-level settings.
 ---
 
@@ -10,17 +10,17 @@ Z-Fetch provides comprehensive configuration options that can be set at the inst
 Set default options when creating an instance:
 
 ```js
-import { createInstance } from '@z-fetch/fetch';
+import { createInstance } from "@z-fetch/fetch";
 
 const api = createInstance({
-  baseUrl: 'https://api.example.com',
+  baseUrl: "https://api.example.com",
   timeout: 30000,
   headers: {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json'
+    Accept: "application/json",
+    "Content-Type": "application/json",
   },
   withCredentials: true,
-  retries: 3
+  retries: 3,
 });
 ```
 
@@ -32,12 +32,12 @@ Set a base URL for all requests:
 
 ```js
 const api = createInstance({
-  baseUrl: 'https://api.example.com'
+  baseUrl: "https://api.example.com",
 });
 
 // Requests will be made to: https://api.example.com/users
-await api.get('/users');
-await api.post('/users', { body: userData });
+await api.get("/users");
+await api.post("/users", { body: userData });
 ```
 
 ### Headers
@@ -47,11 +47,11 @@ Set default headers for all requests:
 ```js
 const api = createInstance({
   headers: {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-    'User-Agent': 'MyApp/1.0',
-    'X-API-Version': 'v2'
-  }
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    "User-Agent": "MyApp/1.0",
+    "X-API-Version": "v2",
+  },
 });
 ```
 
@@ -59,12 +59,12 @@ Headers are intelligently merged:
 
 ```js
 // Instance headers + request headers
-await api.post('/users', {
+await api.post("/users", {
   headers: {
-    'Authorization': 'Bearer token',
-    'X-Request-ID': 'abc123'
+    Authorization: "Bearer token",
+    "X-Request-ID": "abc123",
   },
-  body: userData
+  body: userData,
 });
 // Final headers include both instance and request headers
 ```
@@ -77,11 +77,11 @@ Automatic Bearer token authentication:
 
 ```js
 const api = createInstance({
-  bearerToken: 'your-jwt-token'
+  bearerToken: "your-jwt-token",
 });
 
 // Automatically adds: Authorization: Bearer your-jwt-token
-await api.get('/protected-endpoint');
+await api.get("/protected-endpoint");
 ```
 
 #### Basic Authentication
@@ -89,8 +89,8 @@ await api.get('/protected-endpoint');
 ```js
 const api = createInstance({
   headers: {
-    'Authorization': `Basic ${btoa('username:password')}`
-  }
+    Authorization: `Basic ${btoa("username:password")}`,
+  },
 });
 ```
 
@@ -99,8 +99,8 @@ const api = createInstance({
 ```js
 const api = createInstance({
   headers: {
-    'X-API-Key': 'your-api-key'
-  }
+    "X-API-Key": "your-api-key",
+  },
 });
 ```
 
@@ -110,16 +110,20 @@ Control how credentials are sent with requests:
 
 ```js
 const api = createInstance({
-  withCredentials: true,  // Sets credentials: 'include'
-  mode: 'cors',
+  withCredentials: true, // Sets fetch credentials: 'include'
+  mode: "cors",
   headers: {
-    'Access-Control-Allow-Origin': '*'
-  }
+    "Access-Control-Allow-Origin": "*",
+  },
 });
 ```
 
+- Fetch path: sets `credentials: 'include'`.
+- XHR path (when using progress callbacks): sets `xhr.withCredentials = true`.
+
 <Callout title="Fixed in Latest Version" type="info">
-  The `withCredentials` option now properly sets `credentials: 'include'` as expected.
+  The `withCredentials` option now properly sets fetch credentials and XHR
+  withCredentials as expected.
 </Callout>
 
 ## Advanced Configuration
@@ -130,12 +134,12 @@ Set request timeout in milliseconds:
 
 ```js
 const api = createInstance({
-  timeout: 30000  // 30 seconds
+  timeout: 30000, // 30 seconds
 });
 
 // Per-request timeout override
-await api.get('/slow-endpoint', {
-  timeout: 60000  // 60 seconds for this request
+await api.get("/slow-endpoint", {
+  timeout: 60000, // 60 seconds for this request
 });
 ```
 
@@ -145,12 +149,12 @@ Configure automatic retries for failed requests:
 
 ```js
 const api = createInstance({
-  retries: 3,           // Number of retries
-  retryDelay: 1000,     // Delay between retries (ms)
+  retries: 3, // Number of retries
+  retryDelay: 1000, // Delay between retries (ms)
   retryCondition: (error) => {
     // Custom retry logic
-    return error.status >= 500 || error.message.includes('network');
-  }
+    return error.status >= 500 || error.message.includes("network");
+  },
 });
 ```
 
@@ -160,12 +164,15 @@ Control request and response caching:
 
 ```js
 const api = createInstance({
-  cache: 'no-cache',        // or 'default', 'force-cache', 'only-if-cached'
-  withCache: true,          // Enable Z-Fetch caching
-  cacheTimeout: 300000,     // Cache timeout (5 minutes)
-  revalidateCache: 60000    // Revalidate cache every minute
+  cache: "no-cache", // native fetch cache control
+  withCache: true, // Enable Z-Fetch caching for GET
+  revalidateCache: 60000, // Revalidate cache every minute
 });
 ```
+
+- Successful GET responses are cached when `withCache: true`.
+- Failed or canceled GETs are not cached; the next call hits the network.
+- Background revalidation preserves existing cache on failure.
 
 ## Progress Tracking Configuration
 
@@ -177,7 +184,7 @@ const api = createInstance({
     const percentage = Math.round((event.loaded / event.total) * 100);
     console.log(`Upload: ${percentage}%`);
     updateGlobalUploadProgress(percentage);
-  }
+  },
 });
 ```
 
@@ -189,7 +196,7 @@ const api = createInstance({
     const percentage = Math.round((event.loaded / event.total) * 100);
     console.log(`Download: ${percentage}%`);
     updateGlobalDownloadProgress(percentage);
-  }
+  },
 });
 ```
 
@@ -202,14 +209,14 @@ Map error codes and messages to user-friendly text:
 ```js
 const api = createInstance({
   errorMapping: {
-    401: 'Please sign in to continue',
-    403: 'You do not have permission for this action',
-    404: 'The requested resource was not found',
-    429: 'Too many requests. Please slow down.',
-    500: 'Internal server error. Please try again.',
-    'fetch failed': 'Network connection failed',
-    'timeout': 'Request timed out'
-  }
+    401: "Please sign in to continue",
+    403: "You do not have permission for this action",
+    404: "The requested resource was not found",
+    429: "Too many requests. Please slow down.",
+    500: "Internal server error. Please try again.",
+    "fetch failed": "Network connection failed",
+    timeout: "Request timed out",
+  },
 });
 ```
 
@@ -220,10 +227,10 @@ const api = createInstance({
   hooks: {
     onError: (context) => {
       // Global error handling
-      console.error('API Error:', context.error);
+      console.error("API Error:", context.error);
       trackError(context.error);
-    }
-  }
+    },
+  },
 });
 ```
 
@@ -235,15 +242,15 @@ Control automatic JSON parsing:
 
 ```js
 const api = createInstance({
-  parseJson: true,          // Auto-parse JSON responses
-  stringifyPayload: true    // Auto-stringify request bodies
+  parseJson: true, // Auto-parse JSON responses
+  stringifyPayload: true, // Auto-stringify request bodies
 });
 
 // Disable for specific requests
-await api.post('/upload', {
+await api.post("/upload", {
   body: formData,
   parseJson: false,
-  stringifyPayload: false
+  stringifyPayload: false,
 });
 ```
 
@@ -254,17 +261,17 @@ const api = createInstance({
   hooks: {
     onResponse: (context) => {
       // Global response processing
-      console.log('Response received:', context.response.status);
-      
+      console.log("Response received:", context.response.status);
+
       // Add response metadata
       return {
         data: {
           ...context.data,
-          receivedAt: Date.now()
-        }
+          receivedAt: Date.now(),
+        },
       };
-    }
-  }
+    },
+  },
 });
 ```
 
@@ -274,20 +281,22 @@ const api = createInstance({
 
 ```js
 const api = createInstance({
-  baseUrl: process.env.NODE_ENV === 'production' 
-    ? 'https://api.example.com'
-    : 'https://dev-api.example.com',
-    
-  timeout: process.env.NODE_ENV === 'development' 
-    ? 60000   // Longer timeout in dev
-    : 30000,
-    
+  baseUrl:
+    process.env.NODE_ENV === "production"
+      ? "https://api.example.com"
+      : "https://dev-api.example.com",
+
+  timeout:
+    process.env.NODE_ENV === "development"
+      ? 60000 // Longer timeout in dev
+      : 30000,
+
   headers: {
-    'X-Environment': process.env.NODE_ENV,
-    ...(process.env.NODE_ENV === 'development' && {
-      'X-Debug': 'true'
-    })
-  }
+    "X-Environment": process.env.NODE_ENV,
+    ...(process.env.NODE_ENV === "development" && {
+      "X-Debug": "true",
+    }),
+  },
 });
 ```
 
@@ -300,123 +309,122 @@ const api = createInstance({
   timeout: parseInt(process.env.REACT_APP_API_TIMEOUT) || 30000,
   bearerToken: process.env.REACT_APP_API_TOKEN,
   headers: {
-    'X-API-Key': process.env.REACT_APP_API_KEY
-  }
+    "X-API-Key": process.env.REACT_APP_API_KEY,
+  },
 });
 ```
 
 ## Complete Configuration Example
 
 ```js
-import { createInstance } from '@z-fetch/fetch';
+import { createInstance } from "@z-fetch/fetch";
 
 const api = createInstance({
   // Base configuration
-  baseUrl: 'https://api.example.com',
+  baseUrl: "https://api.example.com",
   timeout: 30000,
-  
+
   // Authentication
-  bearerToken: localStorage.getItem('authToken'),
-  
+  bearerToken: localStorage.getItem("authToken"),
+
   // Headers
   headers: {
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-    'X-API-Version': 'v2',
-    'X-Client-Version': '1.0.0'
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    "X-API-Version": "v2",
+    "X-Client-Version": "1.0.0",
   },
-  
+
   // CORS and credentials
   withCredentials: true,
-  mode: 'cors',
-  
+  mode: "cors",
+
   // Error handling
   errorMapping: {
-    401: 'Authentication required',
-    403: 'Access denied',
-    404: 'Resource not found',
-    429: 'Rate limit exceeded',
-    500: 'Server error',
-    'fetch failed': 'Network error'
+    401: "Authentication required",
+    403: "Access denied",
+    404: "Resource not found",
+    429: "Rate limit exceeded",
+    500: "Server error",
+    "fetch failed": "Network error",
   },
-  
+
   // Progress tracking
   onUploadProgress: (event) => {
     const percentage = Math.round((event.loaded / event.total) * 100);
     updateUploadProgress(percentage);
   },
-  
+
   onDownloadProgress: (event) => {
     const percentage = Math.round((event.loaded / event.total) * 100);
     updateDownloadProgress(percentage);
   },
-  
+
   // Retry configuration
   retries: 3,
   retryDelay: 1000,
-  
+
   // Cache configuration
   withCache: true,
-  cacheTimeout: 300000,
-  
+
   // Hooks
   hooks: {
     onRequest: (context) => {
       // Add request timestamp
-      context.setHeaders(headers => ({
+      context.setHeaders((headers) => ({
         ...headers,
-        'X-Request-Time': Date.now().toString()
+        "X-Request-Time": Date.now().toString(),
       }));
-      
+
       // Log requests in development
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         console.log(`→ ${context.request.method} ${context.request.url}`);
       }
     },
-    
+
     onResponse: (context) => {
       // Log responses in development
-      if (process.env.NODE_ENV === 'development') {
+      if (process.env.NODE_ENV === "development") {
         console.log(`← ${context.response.status} ${context.request.url}`);
       }
-      
+
       // Add response metadata
       return {
         data: {
           ...context.data,
           meta: {
-            requestTime: context.request.headers['X-Request-Time'],
+            requestTime: context.request.headers["X-Request-Time"],
             responseTime: Date.now(),
-            status: context.response.status
-          }
-        }
+            status: context.response.status,
+          },
+        },
       };
     },
-    
+
     onError: (context) => {
       // Log errors
-      console.error('API Error:', {
+      console.error("API Error:", {
         url: context.request?.url,
         method: context.request?.method,
         status: context.error?.status,
-        message: context.error?.message
+        message: context.error?.message,
       });
-      
+
       // Track errors
-      if (typeof gtag !== 'undefined') {
-        gtag('event', 'api_error', {
+      if (typeof gtag !== "undefined") {
+        gtag("event", "api_error", {
           error_status: context.error?.status,
-          error_url: context.request?.url
+          error_url: context.request?.url,
         });
       }
-      
+
       // Handle authentication errors
       if (context.error?.status === 401) {
-        localStorage.removeItem('authToken');
-        window.location.href = '/login';
+        localStorage.removeItem("authToken");
+        window.location.href = "/login";
       }
-    }
-  }
+    },
+  },
 });
 
 export default api;
@@ -428,14 +436,14 @@ Any instance configuration can be overridden at the request level:
 
 ```js
 // Override instance settings for specific request
-await api.post('/special-endpoint', {
-  timeout: 60000,  // Override instance timeout
+await api.post("/special-endpoint", {
+  timeout: 60000, // Override instance timeout
   headers: {
-    'X-Special': 'true'  // Additional headers
+    "X-Special": "true", // Additional headers
   },
-  bearerToken: specialToken,  // Override instance token
-  withCredentials: false,     // Override credentials setting
-  body: requestData
+  bearerToken: specialToken, // Override instance token
+  withCredentials: false, // Override credentials setting
+  body: requestData,
 });
 ```
 

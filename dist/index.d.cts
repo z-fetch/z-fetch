@@ -220,6 +220,10 @@ type RequestResult = {
     /** Stream response body chunk by chunk */
     streamChunks?: (callback: (chunk: Uint8Array) => void) => Promise<void>;
 };
+/** Cancelable promise type for early cancellation */
+type CancelablePromise<T> = Promise<T> & {
+    cancel: () => void;
+};
 /**
  * Request options for z-fetch requests.
  * Extends standard RequestInit while allowing object bodies and partial Config options.
@@ -251,7 +255,7 @@ type RequestOptions = Omit<RequestInit, "body"> & {
  * @example
  * const result = await GET('https://api.example.com/resource');
  */
-declare function GET(url: string, options?: RequestOptions): Promise<RequestResult>;
+declare function GET(url: string, options?: RequestOptions): CancelablePromise<RequestResult>;
 /**
  * Sends an HTTP POST request to the specified URL.
  *
@@ -262,7 +266,7 @@ declare function GET(url: string, options?: RequestOptions): Promise<RequestResu
  * @example
  * const result = await POST('https://api.example.com/resource', { body: { key: 'value' } });
  */
-declare function POST(url: string, options?: RequestOptions): Promise<RequestResult>;
+declare function POST(url: string, options?: RequestOptions): CancelablePromise<RequestResult>;
 /**
  * Sends an HTTP PUT request to the specified URL.
  *
@@ -273,7 +277,7 @@ declare function POST(url: string, options?: RequestOptions): Promise<RequestRes
  * @example
  * const result = await PUT('https://api.example.com/resource', { body: { key: 'value' } });
  */
-declare function PUT(url: string, options?: RequestOptions): Promise<RequestResult>;
+declare function PUT(url: string, options?: RequestOptions): CancelablePromise<RequestResult>;
 /**
  * Sends an HTTP DELETE request to the specified URL.
  *
@@ -284,7 +288,7 @@ declare function PUT(url: string, options?: RequestOptions): Promise<RequestResu
  * @example
  * const result = await DELETE('https://api.example.com/resource');
  */
-declare function DELETE(url: string, options?: RequestOptions): Promise<RequestResult>;
+declare function DELETE(url: string, options?: RequestOptions): CancelablePromise<RequestResult>;
 /**
  * Sends an HTTP PATCH request to the specified URL.
  *
@@ -297,7 +301,7 @@ declare function DELETE(url: string, options?: RequestOptions): Promise<RequestR
  * const result = await PATCH('https://api.example.com/resource', { body: { key: 'value' } });
  *
  */
-declare function PATCH(url: string, options?: RequestOptions): Promise<RequestResult>;
+declare function PATCH(url: string, options?: RequestOptions): CancelablePromise<RequestResult>;
 /**
  * Sends an HTTP OPTIONS request to the specified URL.
  *
@@ -310,7 +314,7 @@ declare function PATCH(url: string, options?: RequestOptions): Promise<RequestRe
  * const result = await OPTIONS('https://api.example.com/resource');
  * ```
  */
-declare function OPTIONS(url: string, options?: RequestOptions): Promise<RequestResult>;
+declare function OPTIONS(url: string, options?: RequestOptions): CancelablePromise<RequestResult>;
 /**
  * Sends a TRACE request to the specified URL.
  *
@@ -321,7 +325,7 @@ declare function OPTIONS(url: string, options?: RequestOptions): Promise<Request
  * @returns A Promise that resolves to the response from the request
  * @throws {Error} If the request fails or network error occurs
  */
-declare function TRACE(url: string, options?: RequestOptions): Promise<RequestResult>;
+declare function TRACE(url: string, options?: RequestOptions): CancelablePromise<RequestResult>;
 /**
  * Performs an HTTP HEAD request to the specified URL.
  *
@@ -334,7 +338,7 @@ declare function TRACE(url: string, options?: RequestOptions): Promise<RequestRe
  * const result = await HEAD('https://api.example.com/resource');
  * ```
  */
-declare function HEAD(url: string, options?: RequestOptions): Promise<RequestResult>;
+declare function HEAD(url: string, options?: RequestOptions): CancelablePromise<RequestResult>;
 /**
  * CUSTOM method allows you to specify any HTTP method.
  * @param {string} url - The URL to request
@@ -342,7 +346,7 @@ declare function HEAD(url: string, options?: RequestOptions): Promise<RequestRes
  * @param {RequestOptions} [options] - Additional options for the request
  * @returns {Promise<RequestResult>} The request result
  */
-declare function CUSTOM(url: string, method: string, options?: RequestOptions): Promise<RequestResult>;
+declare function CUSTOM(url: string, method: string, options?: RequestOptions): CancelablePromise<RequestResult>;
 /**
  * Creates a new Z-Fetch instance with custom configuration.
  *
@@ -381,15 +385,15 @@ declare function CUSTOM(url: string, method: string, options?: RequestOptions): 
  * ```
  */
 declare function createInstance(instanceConfig?: Partial<Config>): {
-    get: (url: string, options?: RequestOptions) => Promise<RequestResult>;
-    post: (url: string, options?: RequestOptions) => Promise<RequestResult>;
-    put: (url: string, options?: RequestOptions) => Promise<RequestResult>;
-    delete: (url: string, options?: RequestOptions) => Promise<RequestResult>;
-    patch: (url: string, options?: RequestOptions) => Promise<RequestResult>;
-    options: (url: string, options?: RequestOptions) => Promise<RequestResult>;
-    trace: (url: string, options?: RequestOptions) => Promise<RequestResult>;
-    head: (url: string, options?: RequestOptions) => Promise<RequestResult>;
-    custom: (url: string, method: string, options?: RequestOptions) => Promise<RequestResult>;
+    get: (url: string, options?: RequestOptions) => CancelablePromise<RequestResult>;
+    post: (url: string, options?: RequestOptions) => CancelablePromise<RequestResult>;
+    put: (url: string, options?: RequestOptions) => CancelablePromise<RequestResult>;
+    delete: (url: string, options?: RequestOptions) => CancelablePromise<RequestResult>;
+    patch: (url: string, options?: RequestOptions) => CancelablePromise<RequestResult>;
+    options: (url: string, options?: RequestOptions) => CancelablePromise<RequestResult>;
+    trace: (url: string, options?: RequestOptions) => CancelablePromise<RequestResult>;
+    head: (url: string, options?: RequestOptions) => CancelablePromise<RequestResult>;
+    custom: (url: string, method: string, options?: RequestOptions) => CancelablePromise<RequestResult>;
     helpers: {
         getConfig: () => {
             baseUrl: string;
@@ -429,4 +433,4 @@ declare function createInstance(instanceConfig?: Partial<Config>): {
     };
 };
 
-export { CUSTOM, type Config, type Context, DELETE, GET, HEAD, type Hook, type METHODS, OPTIONS, PATCH, POST, PUT, type RequestOptions, type RequestResult, TRACE, createInstance };
+export { CUSTOM, type CancelablePromise, type Config, type Context, DELETE, GET, HEAD, type Hook, type METHODS, OPTIONS, PATCH, POST, PUT, type RequestOptions, type RequestResult, TRACE, createInstance };

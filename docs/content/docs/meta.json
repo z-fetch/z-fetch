@@ -2,11 +2,10 @@
   "title": "Documentation",
   "pages": [
     "index",
-    "methods",
-    "using-hooks", 
-    "new-features",
     "create-instance",
     "create-instance-options",
+    "configuration/options",
+    "methods",
     "notes-for-nerds"
   ]
 }

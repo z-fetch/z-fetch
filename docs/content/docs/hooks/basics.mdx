@@ -1,5 +1,5 @@
 ---
-title: 🪝 Hook Basics
+title: Hook Basics
 description: Understanding the fundamentals of Z-Fetch hooks and lifecycle management.
 ---
 
@@ -40,41 +40,41 @@ onResponse/onError  ← Process response or handle errors
 ### With Instance
 
 ```js
-import { createInstance } from '@z-fetch/fetch';
+import { createInstance } from "@z-fetch/fetch";
 
 const api = createInstance({
-  baseUrl: 'https://api.example.com',
+  baseUrl: "https://api.example.com",
   hooks: {
     onRequest: async (context) => {
-      console.log('Making request to:', context.request.url);
+      console.log("Making request to:", context.request.url);
       // Modify request here
     },
     onResponse: async (context) => {
-      console.log('Received response:', context.response.status);
-      // Process response here  
+      console.log("Received response:", context.response.status);
+      // Process response here
     },
     onError: async (context) => {
-      console.log('Request failed:', context.error.message);
+      console.log("Request failed:", context.error.message);
       // Handle error here
-    }
-  }
+    },
+  },
 });
 ```
 
 ### With Individual Requests
 
 ```js
-import { GET } from '@z-fetch/fetch';
+import { GET } from "@z-fetch/fetch";
 
-const { data, error } = await GET('https://api.example.com/data', {
+const { data, error } = await GET("https://api.example.com/data", {
   hooks: {
     onRequest: async (context) => {
-      console.log('Request starting...');
+      console.log("Request starting...");
     },
     onResponse: async (context) => {
-      console.log('Response received!');
-    }
-  }
+      console.log("Response received!");
+    },
+  },
 });
 ```
 
@@ -135,14 +135,14 @@ const api = createInstance({
     onRequest: async (context) => {
       const { url, method } = context.request;
       console.log(`→ ${method} ${url}`);
-      console.log('Request started at:', new Date().toISOString());
+      console.log("Request started at:", new Date().toISOString());
     },
     onResponse: async (context) => {
       const { status, statusText } = context.response;
       console.log(`← ${status} ${statusText}`);
-      console.log('Request completed at:', new Date().toISOString());
-    }
-  }
+      console.log("Request completed at:", new Date().toISOString());
+    },
+  },
 });
 ```
 
@@ -152,15 +152,15 @@ const api = createInstance({
 const api = createInstance({
   hooks: {
     onRequest: async (context) => {
-      const token = localStorage.getItem('authToken');
+      const token = localStorage.getItem("authToken");
       if (token) {
-        context.setHeaders(headers => ({
+        context.setHeaders((headers) => ({
           ...headers,
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         }));
       }
-    }
-  }
+    },
+  },
 });
 ```
 
@@ -171,11 +171,11 @@ const api = createInstance({
   hooks: {
     onResponse: async (context) => {
       if (context.response.status === 401) {
-        console.log('Authentication expired, redirecting to login...');
-        window.location.href = '/login';
+        console.log("Authentication expired, redirecting to login...");
+        window.location.href = "/login";
       }
-    }
-  }
+    },
+  },
 });
 ```
 
@@ -190,73 +190,73 @@ const api = createInstance({
       // Add authentication
       const token = getAuthToken();
       if (token) {
-        context.setHeaders(headers => ({
+        context.setHeaders((headers) => ({
           ...headers,
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
         }));
       }
-      
+
       // Add request ID for tracking
-      context.setHeaders(headers => ({
+      context.setHeaders((headers) => ({
         ...headers,
-        'X-Request-ID': generateRequestId()
+        "X-Request-ID": generateRequestId(),
       }));
-      
+
       // Log request
       console.log(`Starting ${context.request.method} ${context.request.url}`);
     },
-    
+
     onResponse: async (context) => {
       // Log response
       console.log(`Completed with status ${context.response.status}`);
-      
+
       // Cache successful responses
-      if (context.response.ok && context.request.method === 'GET') {
+      if (context.response.ok && context.request.method === "GET") {
         cacheResponse(context.request.url, context.data);
       }
     },
-    
+
     onError: async (context) => {
       // Log errors
-      console.error('Request failed:', context.error.message);
-      
+      console.error("Request failed:", context.error.message);
+
       // Track errors
       trackError({
         url: context.request.url,
         method: context.request.method,
-        error: context.error.message
+        error: context.error.message,
       });
-    }
-  }
+    },
+  },
 });
 ```
 
 ## Hook Execution Order
 
 1. **Instance hooks** run first
-2. **Request-level hooks** run second  
+2. **Request-level hooks** run second
 3. Hooks of the same type run in the order they're defined
 
 ```js
 const api = createInstance({
   hooks: {
     onRequest: async (context) => {
-      console.log('1. Instance onRequest');
-    }
-  }
+      console.log("1. Instance onRequest");
+    },
+  },
 });
 
 // This request will run both hooks
-await api.get('/data', {
+await api.get("/data", {
   hooks: {
     onRequest: async (context) => {
-      console.log('2. Request onRequest');
-    }
-  }
+      console.log("2. Request onRequest");
+    },
+  },
 });
 
 // Output:
-// 1. Instance onRequest  
+// 1. Instance onRequest
 // 2. Request onRequest
 ```
 
@@ -268,9 +268,9 @@ You can modify context in two ways:
 
 ```js
 onRequest: async (context) => {
-  context.setHeaders(headers => ({ ...headers, 'X-Custom': 'value' }));
+  context.setHeaders((headers) => ({ ...headers, "X-Custom": "value" }));
   context.setBody({ ...context.request.options.body, timestamp: Date.now() });
-}
+};
 ```
 
 ### Using Return Values
@@ -282,18 +282,19 @@ onRequest: async (context) => {
       ...context.request,
       options: {
         ...context.request.options,
-        headers: { 
-          ...context.request.options.headers, 
-          'X-Custom': 'value' 
-        }
-      }
-    }
+        headers: {
+          ...context.request.options.headers,
+          "X-Custom": "value",
+        },
+      },
+    },
   };
-}
+};
 ```
 
 <Callout title="Best Practice" type="info">
-  Helper methods are recommended as they're more readable and less error-prone than manual spreading.
+  Helper methods are recommended as they're more readable and less error-prone
+  than manual spreading.
 </Callout>
 
 ## Common Patterns
@@ -303,16 +304,16 @@ onRequest: async (context) => {
 ```js
 onRequest: async (context) => {
   // Only add auth to API requests
-  if (context.request.url.includes('/api/')) {
+  if (context.request.url.includes("/api/")) {
     const token = getAuthToken();
     if (token) {
-      context.setHeaders(headers => ({
+      context.setHeaders((headers) => ({
         ...headers,
-        'Authorization': `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
       }));
     }
   }
-}
+};
 ```
 
 ### Environment-Based Configuration
@@ -321,18 +322,18 @@ onRequest: async (context) => {
 const api = createInstance({
   hooks: {
     onRequest: async (context) => {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('DEV REQUEST:', context.request);
+      if (process.env.NODE_ENV === "development") {
+        console.log("DEV REQUEST:", context.request);
       }
-      
+
       // Add API key for production
-      if (process.env.NODE_ENV === 'production') {
-        context.setHeaders(headers => ({
+      if (process.env.NODE_ENV === "production") {
+        context.setHeaders((headers) => ({
           ...headers,
-          'X-API-Key': process.env.API_KEY
+          "X-API-Key": process.env.API_KEY,
         }));
       }
-    }
-  }
+    },
+  },
 });
 ```

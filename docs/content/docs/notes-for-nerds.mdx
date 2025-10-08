@@ -1,14 +1,16 @@
 ---
-title: ✍️ Notes For Nerds
+title: Notes For Nerds
 description: A few things you may need to know to use this well.
 ---
 
-- Z-Fetch is built on top of the native fetch API, so all fetch options are valid and supported.
-- JSON parsing responses is done automatically, but you can disable it if needed via request options or global config. Even body is automatically stringified to JSON unless you provide it as you please.
-- By default content type is set to `application/json` and accept to `*/*`, but you can override them via request options or global config.
-- If your looking for interceptors here they're called hooks, they can be used to modify requests and responses on the fly.
-- Z-Fetch is open source and aims to be community-driven, if you have any questions or suggestions, feel free to open an issue or submit a pull request. It's all appreciated!
+- Built on the native fetch API; all fetch options remain valid.
+- Automatic JSON parsing and payload stringification, configurable per request or globally.
+- Defaults: `Content-Type: application/json`, `Accept: */*` (override anytime).
+- Upload/Download progress via `onUploadProgress`/`onDownloadProgress` (uses XHR under the hood when needed).
+- Streaming helpers: `streamToString`, `streamToBlob`, `streamToArrayBuffer`, `streamChunks` for efficient large data handling.
+- Hooks (aka interceptors): `onRequest`, `onResponse`, `onError` with helper methods for easy mutations.
+- Open source and community-driven — issues and PRs welcome!
 
 ---
 
-🙋‍♂️ What else? Suggestions and feedback come in handy on the GitHub page. Please feel free to contribute or report any issues you encounter. This all was made by a human before vibe coding was a thing!
+Questions or feedback? Open an issue or PR on GitHub. Contributions are welcome.

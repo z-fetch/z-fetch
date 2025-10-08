@@ -10,9 +10,10 @@ export {
   PUT,
   type RequestOptions,
   type RequestResult,
+  type CancelablePromise,
   TRACE,
   type METHODS,
   type Hook,
   type Context,
   createInstance,
-} from './src/lib';
+} from "./src/lib";

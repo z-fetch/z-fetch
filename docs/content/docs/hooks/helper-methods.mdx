@@ -1,5 +1,5 @@
 ---
-title: 🛠️ Helper Methods
+title: Helper Methods
 description: Simplified API with intuitive helper methods that eliminate complex spreading patterns.
 ---
 
@@ -8,14 +8,15 @@ Z-Fetch provides **intuitive helper methods** that make hooks much easier to wor
 ## Available Helper Methods
 
 - **`setHeaders(updater)`** - Modify request headers
-- **`setBody(body)`** - Set request body  
+- **`setBody(body)`** - Set request body
 - **`setOptions(updater)`** - Update request options
 - **`setUrl(url)`** - Change request URL
 - **`setMethod(method)`** - Modify HTTP method
 - **`setError(error)`** - Set or modify errors (onError hook only)
 
 <Callout title="Simplified API" type="info">
-  Helper methods eliminate the need for complex spreading patterns and make hooks much more readable.
+  Helper methods eliminate the need for complex spreading patterns and make
+  hooks much more readable.
 </Callout>
 
 ## Before vs After
@@ -29,36 +30,36 @@ onRequest: async (context) => {
       ...context.request,
       options: {
         ...context.request.options,
-        headers: { 
-          ...context.request.options.headers, 
-          'X-Custom': 'value',
-          'Authorization': `Bearer ${token}`
+        headers: {
+          ...context.request.options.headers,
+          "X-Custom": "value",
+          Authorization: `Bearer ${token}`,
         },
         body: {
           ...context.request.options.body,
-          timestamp: Date.now()
-        }
-      }
-    }
+          timestamp: Date.now(),
+        },
+      },
+    },
   };
-}
+};
 ```
 
 ### Helper Methods (New Way)
 
 ```js
 onRequest: async (context) => {
-  context.setHeaders(headers => ({
+  context.setHeaders((headers) => ({
     ...headers,
-    'X-Custom': 'value',
-    'Authorization': `Bearer ${token}`
+    "X-Custom": "value",
+    Authorization: `Bearer ${token}`,
   }));
-  
+
   context.setBody({
     ...context.request.options.body,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
-}
+};
 ```
 
 ## Header Management
@@ -69,31 +70,31 @@ The most commonly used helper for managing request headers:
 
 ```js
 // Function updater (recommended)
-context.setHeaders(headers => ({
+context.setHeaders((headers) => ({
   ...headers,
-  'Content-Type': 'application/json',
-  'Authorization': `Bearer ${token}`,
-  'X-Request-ID': generateId()
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${token}`,
+  "X-Request-ID": generateId(),
 }));
 
 // Direct object (replaces all headers)
 context.setHeaders({
-  'Content-Type': 'application/json',
-  'Authorization': `Bearer ${token}`
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${token}`,
 });
 
 // Conditional headers
-context.setHeaders(headers => {
+context.setHeaders((headers) => {
   const newHeaders = { ...headers };
-  
+
   if (needsAuth) {
-    newHeaders['Authorization'] = `Bearer ${token}`;
+    newHeaders["Authorization"] = `Bearer ${token}`;
   }
-  
+
   if (isJsonRequest) {
-    newHeaders['Content-Type'] = 'application/json';
+    newHeaders["Content-Type"] = "application/json";
   }
-  
+
   return newHeaders;
 });
 ```
@@ -102,24 +103,24 @@ context.setHeaders(headers => {
 
 ```js
 // API versioning
-context.setHeaders(headers => ({
+context.setHeaders((headers) => ({
   ...headers,
-  'Accept': 'application/vnd.api+json',
-  'API-Version': 'v2'
+  Accept: "application/vnd.api+json",
+  "API-Version": "v2",
 }));
 
 // CORS and security headers
-context.setHeaders(headers => ({
+context.setHeaders((headers) => ({
   ...headers,
-  'Origin': window.location.origin,
-  'X-Requested-With': 'XMLHttpRequest'
+  Origin: window.location.origin,
+  "X-Requested-With": "XMLHttpRequest",
 }));
 
 // Custom business headers
-context.setHeaders(headers => ({
+context.setHeaders((headers) => ({
   ...headers,
-  'X-Tenant-ID': getCurrentTenantId(),
-  'X-Feature-Flags': getEnabledFeatures().join(',')
+  "X-Tenant-ID": getCurrentTenantId(),
+  "X-Feature-Flags": getEnabledFeatures().join(","),
 }));
 ```
 
@@ -135,26 +136,26 @@ context.setBody({
   ...context.request.options.body,
   timestamp: Date.now(),
   requestId: generateRequestId(),
-  userAgent: navigator.userAgent
+  userAgent: navigator.userAgent,
 });
 
 // Transform FormData
 if (context.request.options.body instanceof FormData) {
   const formData = context.request.options.body;
-  formData.append('timestamp', Date.now().toString());
-  formData.append('source', 'web-app');
+  formData.append("timestamp", Date.now().toString());
+  formData.append("source", "web-app");
   context.setBody(formData);
 }
 
 // JSON transformation
 const currentBody = context.request.options.body;
-if (typeof currentBody === 'object' && currentBody !== null) {
+if (typeof currentBody === "object" && currentBody !== null) {
   context.setBody({
     data: currentBody,
     meta: {
       timestamp: Date.now(),
-      version: '1.0'
-    }
+      version: "1.0",
+    },
   });
 }
 ```
@@ -168,18 +169,21 @@ Modify request URLs dynamically:
 ```js
 // Add query parameters
 const currentUrl = new URL(context.request.url);
-currentUrl.searchParams.set('timestamp', Date.now().toString());
-currentUrl.searchParams.set('source', 'app');
+currentUrl.searchParams.set("timestamp", Date.now().toString());
+currentUrl.searchParams.set("source", "app");
 context.setUrl(currentUrl.toString());
 
 // Environment-based URL modification
-if (process.env.NODE_ENV === 'development') {
-  const devUrl = context.request.url.replace('api.example.com', 'dev-api.example.com');
+if (process.env.NODE_ENV === "development") {
+  const devUrl = context.request.url.replace(
+    "api.example.com",
+    "dev-api.example.com",
+  );
   context.setUrl(devUrl);
 }
 
 // Add versioning to URL
-const versionedUrl = context.request.url.replace('/api/', '/api/v2/');
+const versionedUrl = context.request.url.replace("/api/", "/api/v2/");
 context.setUrl(versionedUrl);
 ```
 
@@ -191,17 +195,17 @@ Change HTTP methods conditionally:
 
 ```js
 // Conditional method override
-if (context.request.options.body && context.request.method === 'GET') {
+if (context.request.options.body && context.request.method === "GET") {
   // Convert GET with body to POST
-  context.setMethod('POST');
+  context.setMethod("POST");
 }
 
 // Method tunneling for restricted environments
-if (context.request.method === 'DELETE' && isMethodRestricted('DELETE')) {
-  context.setMethod('POST');
-  context.setHeaders(headers => ({
+if (context.request.method === "DELETE" && isMethodRestricted("DELETE")) {
+  context.setMethod("POST");
+  context.setHeaders((headers) => ({
     ...headers,
-    'X-HTTP-Method-Override': 'DELETE'
+    "X-HTTP-Method-Override": "DELETE",
   }));
 }
 ```
@@ -214,26 +218,26 @@ Modify fetch options beyond headers and body:
 
 ```js
 // Add timeout and credentials
-context.setOptions(options => ({
+context.setOptions((options) => ({
   ...options,
   timeout: 30000,
-  credentials: 'include',
-  cache: 'no-cache'
+  credentials: "include",
+  cache: "no-cache",
 }));
 
 // Conditional options
-context.setOptions(options => {
+context.setOptions((options) => {
   const newOptions = { ...options };
-  
+
   if (isLongRunningRequest()) {
     newOptions.timeout = 120000; // 2 minutes
   }
-  
+
   if (needsCORS()) {
-    newOptions.mode = 'cors';
-    newOptions.credentials = 'include';
+    newOptions.mode = "cors";
+    newOptions.credentials = "include";
   }
-  
+
   return newOptions;
 });
 ```
@@ -248,20 +252,20 @@ Modify errors in the onError hook:
 onError: async (context) => {
   // Customize error message
   context.setError({
-    message: 'Something went wrong. Please try again.',
-    status: context.error?.status || 'UNKNOWN',
-    originalError: context.error
+    message: "Something went wrong. Please try again.",
+    status: context.error?.status || "UNKNOWN",
+    originalError: context.error,
   });
-  
+
   // Map specific errors
   if (context.error?.status === 401) {
     context.setError({
-      message: 'Please sign in to continue',
-      status: 'AUTHENTICATION_REQUIRED',
-      action: 'LOGIN_REQUIRED'
+      message: "Please sign in to continue",
+      status: "AUTHENTICATION_REQUIRED",
+      action: "LOGIN_REQUIRED",
     });
   }
-}
+};
 ```
 
 ## Combining Helper Methods
@@ -273,34 +277,34 @@ onRequest: async (context) => {
   // Add authentication
   const token = getAuthToken();
   if (token) {
-    context.setHeaders(headers => ({
+    context.setHeaders((headers) => ({
       ...headers,
-      'Authorization': `Bearer ${token}`
+      Authorization: `Bearer ${token}`,
     }));
   }
-  
+
   // Add request metadata
   context.setBody({
     ...context.request.options.body,
     meta: {
       timestamp: Date.now(),
       userAgent: navigator.userAgent,
-      sessionId: getSessionId()
-    }
+      sessionId: getSessionId(),
+    },
   });
-  
+
   // Add tracking parameters
   const url = new URL(context.request.url);
-  url.searchParams.set('tracking', getTrackingId());
+  url.searchParams.set("tracking", getTrackingId());
   context.setUrl(url.toString());
-  
+
   // Set options for authenticated requests
-  context.setOptions(options => ({
+  context.setOptions((options) => ({
     ...options,
-    credentials: 'include',
-    timeout: 30000
+    credentials: "include",
+    timeout: 30000,
   }));
-}
+};
 ```
 
 ## Real-World Patterns
@@ -310,15 +314,15 @@ onRequest: async (context) => {
 ```js
 onRequest: async (context) => {
   const apiKey = getApiKey();
-  
-  if (context.request.url.includes('/api/')) {
-    context.setHeaders(headers => ({
+
+  if (context.request.url.includes("/api/")) {
+    context.setHeaders((headers) => ({
       ...headers,
-      'X-API-Key': apiKey,
-      'Accept': 'application/json'
+      "X-API-Key": apiKey,
+      Accept: "application/json",
     }));
   }
-}
+};
 ```
 
 ### Request Signing
@@ -328,15 +332,15 @@ onRequest: async (context) => {
   const { method, url } = context.request;
   const body = JSON.stringify(context.request.options.body || {});
   const timestamp = Date.now().toString();
-  
+
   const signature = generateSignature(method + url + body + timestamp);
-  
-  context.setHeaders(headers => ({
+
+  context.setHeaders((headers) => ({
     ...headers,
-    'X-Timestamp': timestamp,
-    'X-Signature': signature
+    "X-Timestamp": timestamp,
+    "X-Signature": signature,
   }));
-}
+};
 ```
 
 ### Retry Logic Setup
@@ -344,34 +348,34 @@ onRequest: async (context) => {
 ```js
 onRequest: async (context) => {
   // Add retry metadata
-  context.setOptions(options => ({
+  context.setOptions((options) => ({
     ...options,
     retryCount: options.retryCount || 0,
-    maxRetries: 3
+    maxRetries: 3,
   }));
-}
+};
 ```
 
 ### Development vs Production
 
 ```js
 onRequest: async (context) => {
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.NODE_ENV === "development") {
     // Add debug headers
-    context.setHeaders(headers => ({
+    context.setHeaders((headers) => ({
       ...headers,
-      'X-Debug': 'true',
-      'X-Environment': 'development'
+      "X-Debug": "true",
+      "X-Environment": "development",
     }));
-    
+
     // Log request details
-    console.log('DEV REQUEST:', {
+    console.log("DEV REQUEST:", {
       method: context.request.method,
       url: context.request.url,
-      body: context.request.options.body
+      body: context.request.options.body,
     });
   }
-}
+};
 ```
 
 ## Helper Method Benefits

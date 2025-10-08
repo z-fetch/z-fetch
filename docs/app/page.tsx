@@ -11,6 +11,8 @@ import {
   CircleMinus,
   Sparkles,
   ShieldPlus,
+  Upload,
+  Waves,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,6 +29,16 @@ const features: Feature[] = [
     description:
       "Built on the native fetch API with no extra libraries needed.",
     icon: Package,
+  },
+  {
+    title: "Upload/Download Progress",
+    description: "Track upload and download progress with simple callbacks.",
+    icon: Upload,
+  },
+  {
+    title: "Streaming Utilities",
+    description: "Stream JSON, text, and NDJSON with helper utilities.",
+    icon: Waves,
   },
   {
     title: "Framework Agnostic",
@@ -98,7 +110,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-start py-12 px-4 sm:px-8 space-y-12">
       <header className="flex items-center justify-between top-2 sticky w-full px-4 py-4 bg-zinc-900 text-zinc-200 z-10">
-        <h1 className="font-bold">⚡Z‑Fetch</h1>
+        <h1 className="font-bold">Z‑Fetch</h1>
         <div className="flex items-center gap-2">
           <button
             className="flex --bg-zinc-50 text-zinc-100 hover:text-zinc-500 rounded-xl text-sm mr-2 px-4 py-2"
@@ -114,7 +126,7 @@ export default function Home() {
       {/* Header with Brand */}
       <header className="text-center mb-12">
         <h1 className="text-5xl sm:text-6xl font-extrabold text-amber-400 cursor-pointer hover:drop-shadow-sm hover:drop-shadow-amber-300 mb-4">
-          ⚡Z‑Fetch
+          Z‑Fetch
         </h1>
         <p className="max-w-2xl mx-auto text-lg sm:text-xl text-gray-400 mb-8">
           A pragmatic native fetch API wrapper for JavaScript.

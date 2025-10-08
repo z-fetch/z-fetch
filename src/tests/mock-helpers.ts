@@ -1,16 +1,46 @@
+export function setupMockFetch(initialMockResponse?: any) {
+  const originalFetch = globalThis.fetch;
+  let mockResponse = initialMockResponse;
+
+  const { mockFetch, calls } = createMockFetch(() => mockResponse);
+
+  globalThis.fetch = mockFetch as any;
+
+  return {
+    calls,
+    restore: () => {
+      globalThis.fetch = originalFetch;
+    },
+    setResponse: (newResponse: any, status?: number) => {
+      if (status) {
+        mockResponse = { ...newResponse, status };
+      } else {
+        mockResponse = newResponse;
+      }
+    },
+  };
+}
+
 // Mock fetch helper for testing without network dependency
-export function createMockFetch(mockResponse: any = { id: 1, title: "test" }) {
+export function createMockFetch(
+  getMockResponse: () => any = () => ({ id: 1, title: "test" }),
+) {
   const calls: Array<{ url: string; options: any }> = [];
 
   const mockFetch = async (url: string | URL, options: any = {}) => {
     calls.push({ url: url.toString(), options });
+    const currentMockResponse = getMockResponse();
 
     // Handle error scenarios based on mockResponse configuration
-    if (mockResponse && typeof mockResponse === "object") {
-      if (mockResponse.success === false || mockResponse.status >= 400) {
-        const status = mockResponse.status || 404;
+    if (currentMockResponse && typeof currentMockResponse === "object") {
+      if (
+        currentMockResponse.success === false ||
+        currentMockResponse.status >= 400
+      ) {
+        const status = currentMockResponse.status || 404;
         const statusText =
-          mockResponse.statusText || (status === 404 ? "Not Found" : "Error");
+          currentMockResponse.statusText ||
+          (status === 404 ? "Not Found" : "Error");
 
         return {
           ok: false,
@@ -37,8 +67,8 @@ export function createMockFetch(mockResponse: any = { id: 1, title: "test" }) {
       status: 200,
       statusText: "OK",
       url: url.toString(),
-      json: async () => mockResponse,
-      text: async () => JSON.stringify(mockResponse),
+      json: async () => currentMockResponse,
+      text: async () => JSON.stringify(currentMockResponse),
       headers: new Headers(),
       body: null,
       bodyUsed: false,
@@ -52,18 +82,4 @@ export function createMockFetch(mockResponse: any = { id: 1, title: "test" }) {
   };
 
   return { mockFetch, calls };
-}
-
-export function setupMockFetch(mockResponse?: any) {
-  const originalFetch = globalThis.fetch;
-  const { mockFetch, calls } = createMockFetch(mockResponse);
-
-  globalThis.fetch = mockFetch as any;
-
-  return {
-    calls,
-    restore: () => {
-      globalThis.fetch = originalFetch;
-    },
-  };
 }

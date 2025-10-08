@@ -1,5 +1,5 @@
 ---
-title: 🔧 Advanced HTTP Methods  
+title: Advanced HTTP Methods
 description: OPTIONS, TRACE, HEAD, and CUSTOM methods for specialized use cases.
 ---
 
@@ -19,16 +19,21 @@ Beyond the basic HTTP methods, Z-Fetch provides support for advanced HTTP method
 Use OPTIONS to check what methods and capabilities a server supports:
 
 ```js
-import { OPTIONS } from '@z-fetch/fetch';
+import { OPTIONS } from "@z-fetch/fetch";
 
 const checkCapabilities = async () => {
-  const { data, error, response } = await OPTIONS('https://api.example.com/posts');
-  
+  const { data, error, response } = await OPTIONS(
+    "https://api.example.com/posts",
+  );
+
   if (response) {
-    console.log('Allowed methods:', response.headers.get('Allow'));
-    console.log('CORS headers:', response.headers.get('Access-Control-Allow-Headers'));
+    console.log("Allowed methods:", response.headers.get("Allow"));
+    console.log(
+      "CORS headers:",
+      response.headers.get("Access-Control-Allow-Headers"),
+    );
   } else {
-    console.error('Error:', error.message);
+    console.error("Error:", error.message);
   }
 };
 ```
@@ -38,21 +43,22 @@ const checkCapabilities = async () => {
 TRACE is useful for debugging request paths through proxies:
 
 ```js
-import { TRACE } from '@z-fetch/fetch';
+import { TRACE } from "@z-fetch/fetch";
 
 const traceRequest = async () => {
-  const { data, error } = await TRACE('https://api.example.com/posts');
-  
+  const { data, error } = await TRACE("https://api.example.com/posts");
+
   if (data) {
-    console.log('Request trace:', data);
+    console.log("Request trace:", data);
   } else {
-    console.error('Error:', error.message);
+    console.error("Error:", error.message);
   }
 };
 ```
 
 <Callout title="Note" type="info">
-  Many servers disable TRACE for security reasons. Check server configuration if you encounter issues.
+  Many servers disable TRACE for security reasons. Check server configuration if
+  you encounter issues.
 </Callout>
 
 ### HEAD Request
@@ -60,17 +66,19 @@ const traceRequest = async () => {
 Get response headers without downloading the full response body:
 
 ```js
-import { HEAD } from '@z-fetch/fetch';
+import { HEAD } from "@z-fetch/fetch";
 
 const checkResourceInfo = async () => {
-  const { response, error } = await HEAD('https://api.example.com/large-file.zip');
-  
+  const { response, error } = await HEAD(
+    "https://api.example.com/large-file.zip",
+  );
+
   if (response) {
-    console.log('Content-Length:', response.headers.get('Content-Length'));
-    console.log('Content-Type:', response.headers.get('Content-Type'));
-    console.log('Last-Modified:', response.headers.get('Last-Modified'));
+    console.log("Content-Length:", response.headers.get("Content-Length"));
+    console.log("Content-Type:", response.headers.get("Content-Type"));
+    console.log("Last-Modified:", response.headers.get("Last-Modified"));
   } else {
-    console.error('Error:', error.message);
+    console.error("Error:", error.message);
   }
 };
 ```
@@ -80,24 +88,24 @@ const checkResourceInfo = async () => {
 Use any custom HTTP method for specialized protocols:
 
 ```js
-import { CUSTOM } from '@z-fetch/fetch';
+import { CUSTOM } from "@z-fetch/fetch";
 
 const customMethodRequest = async () => {
   // Example with a custom method like CONNECT or proprietary methods
   const { data, error } = await CUSTOM(
-    'https://api.example.com/custom-endpoint', 
-    'CUSTOM', 
+    "https://api.example.com/custom-endpoint",
+    "CUSTOM",
     {
       body: {
-        customData: 'example',
+        customData: "example",
       },
-    }
+    },
   );
-  
+
   if (data) {
-    console.log('Custom response:', data);
+    console.log("Custom response:", data);
   } else {
-    console.error('Error:', error.message);
+    console.error("Error:", error.message);
   }
 };
 ```
@@ -105,17 +113,17 @@ const customMethodRequest = async () => {
 ### Real-World Example: WebDAV
 
 ```js
-import { CUSTOM } from '@z-fetch/fetch';
+import { CUSTOM } from "@z-fetch/fetch";
 
 // WebDAV PROPFIND method
 const webdavPropfind = async () => {
   const { data, error } = await CUSTOM(
-    'https://webdav.example.com/folder/',
-    'PROPFIND',
+    "https://webdav.example.com/folder/",
+    "PROPFIND",
     {
       headers: {
-        'Depth': '1',
-        'Content-Type': 'application/xml',
+        Depth: "1",
+        "Content-Type": "application/xml",
       },
       body: `<?xml version="1.0" encoding="utf-8" ?>
         <D:propfind xmlns:D="DAV:">
@@ -125,13 +133,13 @@ const webdavPropfind = async () => {
             <D:getlastmodified/>
           </D:prop>
         </D:propfind>`,
-    }
+    },
   );
-  
+
   if (data) {
-    console.log('WebDAV properties:', data);
+    console.log("WebDAV properties:", data);
   } else {
-    console.error('WebDAV error:', error.message);
+    console.error("WebDAV error:", error.message);
   }
 };
 ```
@@ -139,21 +147,25 @@ const webdavPropfind = async () => {
 ## Use Cases
 
 **OPTIONS:**
+
 - CORS preflight checks
 - API capability discovery
 - Server feature detection
 
 **TRACE:**
+
 - Request debugging
 - Proxy troubleshooting
 - Security testing
 
 **HEAD:**
+
 - File size checking
 - Cache validation
 - Resource existence checks
 
 **CUSTOM:**
+
 - WebDAV operations (PROPFIND, MKCOL, MOVE, COPY)
 - Custom API protocols
 - Legacy system integration
