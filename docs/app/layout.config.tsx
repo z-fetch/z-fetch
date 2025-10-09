@@ -9,7 +9,7 @@ import type { BaseLayoutProps } from "fumadocs-ui/layouts/shared";
  */
 export const baseOptions: BaseLayoutProps = {
   nav: {
-    title: <h1 className="text-amber-300">Z-Fetch</h1>,
+    title: <h1 className="text-amber-300">⚡ Z-Fetch</h1>,
   },
   links: [
     {

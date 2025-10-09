@@ -15,9 +15,9 @@ Hooks let you "hook into" different phases of the request lifecycle:
 
 - **`onRequest`** - Modify requests before they're sent
 - **`onResponse`** - Process responses before they're returned
-- **`onError`** - Handle and modify errors (enhanced with comprehensive error handling)
+- **`onError`** - Handle and modify errors
 
-This is a common pattern in fetch libraries that provides powerful customization capabilities. The enhanced hooks system now includes improved error handling with the `onError` hook for comprehensive error management.
+This is a common pattern in fetch libraries that provides powerful customization capabilities.
 
 ## Hook Lifecycle
 
@@ -296,15 +296,6 @@ onRequest: async (context) => {
   Helper methods are recommended as they're more readable and less error-prone
   than manual spreading.
 </Callout>
-
-## Related Features
-
-Hooks work seamlessly with other Z-Fetch features:
-
-- **[🌊 Streaming Support](/docs/features/streaming)** - Process response streams with built-in utilities
-- **[📊 Progress Tracking](/docs/features/progress-tracking)** - Real-time upload and download progress monitoring
-- **[🚨 Error Handling](/docs/features/error-handling)** - Comprehensive error handling with onError hook and error mapping
-- **[💪 Using Hooks](/docs/using-hooks)** - Advanced hooks usage patterns and examples
 
 ## Common Patterns
 
