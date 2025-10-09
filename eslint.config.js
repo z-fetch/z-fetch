@@ -4,6 +4,17 @@ import prettierPlugin from 'eslint-plugin-prettier';
 
 export default [
   {
+    ignores: [
+      'docs/.next/**',
+      'docs/out/**',
+      'docs/node_modules/**',
+      'dist/**',
+      'node_modules/**',
+      '*.config.js',
+      '*.config.mjs'
+    ]
+  },
+  {
     files: ['src/**/*.ts', 'src/**/*.tsx'], // Main source files
     languageOptions: {
       parser: typescriptParser,
@@ -16,7 +27,7 @@ export default [
       prettier: prettierPlugin,
     },
     rules: {
-      '@typescript-eslint/no-unused-vars': 'warn',
+      '@typescript-eslint/no-unused-vars': ['warn', { 'argsIgnorePattern': '^_' }],
       'prettier/prettier': 'error',
       'no-console': 'warn',
       'no-debugger': 'warn',
@@ -31,8 +42,13 @@ export default [
         sourceType: 'module',
       },
     },
+    plugins: {
+      '@typescript-eslint': typescriptPlugin,
+      prettier: prettierPlugin,
+    },
     rules: {
-      // Define any specific rules for these files, or leave as is
+      '@typescript-eslint/no-unused-vars': ['warn', { 'argsIgnorePattern': '^_' }],
+      'prettier/prettier': 'error',
     },
   },
 ];
