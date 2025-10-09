@@ -1,5 +1,5 @@
 ---
-title: Configuration Options
+title: 🤝 All Options
 description: Complete guide to instance configuration options and request-level settings.
 ---
 
@@ -121,10 +121,6 @@ const api = createInstance({
 - Fetch path: sets `credentials: 'include'`.
 - XHR path (when using progress callbacks): sets `xhr.withCredentials = true`.
 
-<Callout title="Fixed in Latest Version" type="info">
-  The `withCredentials` option now properly sets fetch credentials and XHR
-  withCredentials as expected.
-</Callout>
 
 ## Advanced Configuration
 
@@ -450,3 +446,4 @@ await api.post("/special-endpoint", {
 <Callout title="Configuration Priority" type="info">
   Request-level options always take precedence over instance-level options.
 </Callout>
+

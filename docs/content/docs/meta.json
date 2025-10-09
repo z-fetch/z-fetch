@@ -3,9 +3,11 @@
   "pages": [
     "index",
     "create-instance",
-    "create-instance-options",
-    "configuration/options",
+    "instance-options",
+    "all-options",
+    "interceptors",
+    "notes-for-nerds",
     "methods",
-    "notes-for-nerds"
+    "new-features"
   ]
 }

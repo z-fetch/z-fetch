@@ -1,13 +1,11 @@
 ---
-title: ✌️ Create Instance Options
+title: ✌️ Instance Options
 description: A couple of options are available to customize the behavior of a Z-Fetch Instance.
 ---
 
 Here is the list of all the available options and their default values when not specified.
 
-<Callout title="Careful" type="error">
-    These Options are only applicable when setting up a Z-Fetch instance. Not supported on per request basis.
-</Callout>
+
 
 | Option             | Description                                          | Use Case                                   | Default Value                                             |
 | ------------------ | ---------------------------------------------------- | ------------------------------------------ | --------------------------------------------------------- |
@@ -27,7 +25,12 @@ Here is the list of all the available options and their default values when not 
 | `mode`             | CORS mode for requests                               | Set CORS mode (e.g., 'cors', 'no-cors')    | `'cors'`                                                  |
 | `headers`          | Default headers for all requests                     | Set default headers                        | `{ 'Content-Type': 'application/json', 'Accept': '*/*' }` |
 | `hooks`            | hooks or interceptors                   | Modify requests and responses on all requests                        | `{}`                                                      |
+| `useXHRForProgress` | Force XMLHttpRequest for progress tracking | Force XHR usage even without progress callbacks | `false`                                                  |
+| `credentials`      | Credentials mode for requests           | Set credentials mode ('include', 'same-origin', 'omit') | `undefined`                                              |
+| `cache`            | Cache mode for requests                 | Set cache mode ('default', 'no-store', 'reload', etc.) | `undefined`                                              |
+| `signal`           | AbortSignal for request cancellation   | Cancel requests using AbortController signal | `undefined`                                              |
 
-🤔 What about individual request options? See [request methods](/docs/methods) for more details.
+🤔 What about individual request options? See [request methods](/docs/methods/advanced-requests) for more details.
+
 
 And if you think there's something missing, feel free to open an issue on our GitHub repository.
