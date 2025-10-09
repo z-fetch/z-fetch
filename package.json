@@ -62,14 +62,14 @@
     "size": "size-limit",
     "size:analyze": "size-limit --why",
     "check-exports": "attw --pack . --ignore-rules=cjs-resolves-to-esm",
-    "prepare": "pnpm run build",
-    "preversion": "pnpm run type-check && pnpm run lint && pnpm run test",
-    "version": "changeset version && pnpm run format && git add -A",
+    "prepare": "npm run build",
+    "preversion": "npm run type-check && npm run lint && npm run test",
+    "version": "changeset version && npm run format && git add -A",
     "postversion": "git push origin main --follow-tags",
-    "prepublishOnly": "pnpm run export",
+    "prepublishOnly": "npm run export",
     "publish": "changeset publish",
     "clean": "rm -rf dist",
-    "export": "pnpm run clean && pnpm run type-check && pnpm run lint && pnpm run build && pnpm run check-exports && pnpm run size"
+    "export": "npm run clean && npm run type-check && npm run lint && npm run build && npm run check-exports && npm run size"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.16.4",

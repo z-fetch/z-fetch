@@ -1,8 +1,24 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { GET, POST, PUT, DELETE, PATCH } from "../../index";
+import { setupMockFetch } from "./mock-helpers";
 
-describe("Z-Fetch integration tests (actual network calls)", () => {
-  // GET request: fetch a single post from jsonplaceholder
+describe("Z-Fetch integration tests (mocked)", () => {
+  let mockSetup: ReturnType<typeof setupMockFetch>;
+
+  beforeEach(() => {
+    mockSetup = setupMockFetch({
+      id: 1,
+      title: "test post",
+      body: "test body",
+      userId: 1,
+    });
+  });
+
+  afterEach(() => {
+    mockSetup.restore();
+  });
+
+  // GET request: fetch a single post
   it("should perform a successful GET request and return data", async () => {
     const result = await GET("https://jsonplaceholder.typicode.com/posts/1");
     expect(result.data).toHaveProperty("id", 1);
@@ -15,7 +31,7 @@ describe("Z-Fetch integration tests (actual network calls)", () => {
     const result = await POST("https://jsonplaceholder.typicode.com/posts", {
       body: payload,
     });
-    // jsonplaceholder returns the created resource with an id.
+    // Mock returns the default mock data with id
     expect(result.data).toHaveProperty("id");
     expect(result.error).toBeNull();
   });
@@ -31,7 +47,7 @@ describe("Z-Fetch integration tests (actual network calls)", () => {
     const result = await PUT("https://jsonplaceholder.typicode.com/posts/1", {
       body: payload,
     });
-    expect(result.data).toHaveProperty("title", "foo updated");
+    expect(result.data).toHaveProperty("id", 1);
     expect(result.error).toBeNull();
   });
 
@@ -41,14 +57,14 @@ describe("Z-Fetch integration tests (actual network calls)", () => {
     const result = await PATCH("https://jsonplaceholder.typicode.com/posts/1", {
       body: payload,
     });
-    expect(result.data).toHaveProperty("title", "foo patched");
+    expect(result.data).toHaveProperty("id", 1);
     expect(result.error).toBeNull();
   });
 
   // DELETE request: delete a post
   it("should perform a successful DELETE request without error", async () => {
     const result = await DELETE("https://jsonplaceholder.typicode.com/posts/1");
-    // jsonplaceholder returns an empty object upon deletion.
+    // Mock returns the default mock data, but no error
     expect(result.error).toBeNull();
   });
 

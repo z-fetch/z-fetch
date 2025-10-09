@@ -1,4 +1,3 @@
-"use client";
 import {
   Star,
   Package,
@@ -7,13 +6,14 @@ import {
   CheckCircle,
   Zap,
   GithubIcon,
-  CirclePlay,
-  CircleMinus,
-  Sparkles,
   ShieldPlus,
+  Waves,
+  Loader2,
+  Recycle,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { CodeBlock } from "./components/CodeBlock";
+import { highlight } from "./components/shared";
 
 type Feature = {
   title: string;
@@ -36,44 +36,45 @@ const features: Feature[] = [
   {
     title: "Built-in Caching",
     description:
-      "Automatically caches responses with auto revalidation for optimized performance.",
+      "Automatic caching with auto revalidation and configurable options.",
     icon: Archive,
   },
   {
     title: "Auto JSON Parsing",
     description:
-      "Automatically parses JSON responses with minimal boilerplate.",
+      "Automatic JSON parsing of responses and request payload.",
     icon: CheckCircle,
   },
   {
-    title: "Retries & Polling",
+    title: "Streaming Support",
     description:
-      "Supports configurable request retries and polling mechanisms.",
-    icon: CirclePlay,
+      "Built-in streaming utilities for stream responses handling.",
+    icon: Waves,
   },
   {
-    title: "Builtin Helpers",
-    description: "Has builtin helpers for most common use cases.",
+    title: "Progress Tracking",
+    description:
+      "Real-time progress tracking for file uploads and downloads.",
+    icon: Loader2,
+  },
+  {
+    title: "Powerful Hooks System",
+    description:
+      "Hooks are interceptors for the request lifecycle.",
+    icon: Recycle,
+  },
+  {
+    title: "Error Mapping",
+    description:
+      "Catch common errors nicely with customizable error message mapping.",
     icon: ShieldPlus,
   },
   {
-    title: "Request Cancellation",
+    title: "More than just fetching",
     description:
-      "Cancel requests on demand with built‑in cancellation support.",
-    icon: CircleMinus,
-  },
-  {
-    title: "Extended HTTP Methods",
-    description:
-      "Supports OPTIONS, TRACE, HEAD, and custom HTTP verbs without extra setup.",
+      "You can cancel requests, set timeout, custom HTTP methods and more.",
     icon: Zap,
-  },
-  {
-    title: "Hooks - Interceptors",
-    description:
-      "You can use hooks to intercept and transform requests and responses.",
-    icon: Sparkles,
-  },
+  }
 ];
 
 type FeatureCardProps = {
@@ -93,19 +94,33 @@ function FeatureCard({ feature }: FeatureCardProps) {
   );
 }
 
-export default function Home() {
-  const router = useRouter();
+export default async function Home() {
+  // Pre-render code blocks on server
+  const bashHighlighted = await highlight("npm install @z-fetch/fetch", "bash");
+  const jsHighlighted = await highlight(`import { GET } from '@z-fetch/fetch';
+
+async function getPosts() {
+  const { data, error } = await GET('https://jsonplaceholder.typicode.com/posts');
+  if (data) {
+    console.log('Posts:', data);
+  } else {
+    console.error('Error fetching posts:', error);
+  }
+}
+
+getPosts();`, "javascript");
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-start py-12 px-4 sm:px-8 space-y-12">
       <header className="flex items-center justify-between top-2 sticky w-full px-4 py-4 bg-zinc-900 text-zinc-200 z-10">
         <h1 className="font-bold">⚡Z‑Fetch</h1>
         <div className="flex items-center gap-2">
-          <button
+          <Link
+            href="/docs"
             className="flex --bg-zinc-50 text-zinc-100 hover:text-zinc-500 rounded-xl text-sm mr-2 px-4 py-2"
-            onClick={() => router.push("/docs")}
           >
             Documentation
-          </button>
+          </Link>
           <Link href="https://github.com/z-fetch/z-fetch">
             <GithubIcon className="text-amber-300" />
           </Link>
@@ -117,7 +132,7 @@ export default function Home() {
           ⚡Z‑Fetch
         </h1>
         <p className="max-w-2xl mx-auto text-lg sm:text-xl text-gray-400 mb-8">
-          A pragmatic native fetch API wrapper for JavaScript.
+          The pragmatic native fetch API wrapper for JavaScript.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
           <Link href="/docs">
@@ -139,18 +154,17 @@ export default function Home() {
 
       {/* Installation Command */}
       <section className="mb-12 w-full max-w-4xl">
-        <div className="bg-zinc-900 p-4 rounded-lg overflow-x-auto  border-1 border-zinc-800">
-          <pre className="text-sm font-mono text-amber-200">
-            <code>{`npm install @z-fetch/fetch`}</code>
-          </pre>
-        </div>
+        <CodeBlock 
+          code="npm install @z-fetch/fetch" 
+          language="bash" 
+          initial={bashHighlighted}
+        />
       </section>
 
       {/* Sample Usage Snippet */}
       <section className="mb-12 w-full max-w-4xl">
-        <div className="bg-zinc-900 p-4 rounded-lg overflow-x-auto">
-          <pre className="text-sm font-mono text-amber-200">
-            <code>{`import { GET } from '@z-fetch/fetch';
+        <CodeBlock 
+          code={`import { GET } from '@z-fetch/fetch';
 
 async function getPosts() {
   const { data, error } = await GET('https://jsonplaceholder.typicode.com/posts');
@@ -161,15 +175,16 @@ async function getPosts() {
   }
 }
 
-getPosts();`}</code>
-          </pre>
-        </div>
+getPosts();`} 
+          language="javascript" 
+          initial={jsHighlighted}
+        />
       </section>
 
       {/* Features Grid */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 w-full max-w-6xl">
-        {features.map((feature, index) => (
-          <FeatureCard key={index} feature={feature} />
+        {features.map((feature) => (
+          <FeatureCard key={feature.title} feature={feature} />
         ))}
       </section>
 

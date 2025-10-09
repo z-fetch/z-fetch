@@ -7,9 +7,9 @@ description: Hooks allow you to hook into the request lifecycle.
 You want to hook into some lifecycle, great, they're called hooks!
 </Callout>
 
-Hooks are a powerful feature that allow you to hook into the request lifecycle in order to intercept it and modify the request or response. Hooks can be used to implement features such as authentication, logging, custom caching, and more.
+Hooks are a powerful feature that allow you to hook into the request lifecycle in order to intercept it and modify the request or response. Hooks can be used to implement features such as authentication, logging, custom caching, error handling, and more.
 
-This is a common pattern in fetch libraries and so you can use it in kinda similar use cases.
+This is a common pattern in fetch libraries and so you can use it in kinda similar use cases. The enhanced hooks system now includes the powerful `onError` hook for comprehensive error handling and modification.
 
 ## Explanation
 
@@ -214,6 +214,42 @@ const api = createInstance({
 });
 ```
 
+### Error Handling Hook
+
+The enhanced `onError` hook provides comprehensive error handling capabilities:
+
+```js
+const api = createInstance({
+  baseUrl: 'https://api.example.com',
+  hooks: {
+    onError: async ({ error, request, config }) => {
+      console.log('Error occurred:', error);
+      
+      // Access full context
+      console.log('Request URL:', request?.url);
+      console.log('Request method:', request?.method);
+      
+      // Modify error using helper
+      context.setError({
+        message: "Something went wrong. Please try again.",
+        status: error?.status || "UNKNOWN",
+        originalError: error,
+      });
+    }
+  }
+});
+```
+
+For comprehensive error handling with error mapping and advanced features, see the **[🚨 Error Handling](/docs/features/error-handling)** documentation.
+
 With these powerful hooks, you can implement complex request/response processing, authentication flows, logging, error handling, and data transformation in a clean and reusable way.
+
+## Related Features
+
+Explore these additional features that work seamlessly with hooks:
+
+- **[🌊 Streaming Support](/docs/features/streaming)** - Process response streams with built-in utilities
+- **[📊 Progress Tracking](/docs/features/progress-tracking)** - Real-time upload and download progress monitoring
+- **[🚨 Error Handling](/docs/features/error-handling)** - Comprehensive error handling with onError hook and error mapping
 
 Any more hooks you think would be useful? Feel free to suggest them!

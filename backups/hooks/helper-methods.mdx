@@ -1,0 +1,387 @@
+---
+title: Helper Methods
+description: Simplified API with intuitive helper methods that eliminate complex spreading patterns.
+---
+
+Z-Fetch provides **intuitive helper methods** that make hooks much easier to work with, eliminating the need for complex object spreading patterns.
+
+## Available Helper Methods
+
+- **`setHeaders(updater)`** - Modify request headers
+- **`setBody(body)`** - Set request body
+- **`setOptions(updater)`** - Update request options
+- **`setUrl(url)`** - Change request URL
+- **`setMethod(method)`** - Modify HTTP method
+- **`setError(error)`** - Set or modify errors (onError hook only)
+
+<Callout title="Simplified API" type="info">
+  Helper methods eliminate the need for complex spreading patterns and make
+  hooks much more readable.
+</Callout>
+
+## Before vs After
+
+### Complex Spreading (Old Way)
+
+```js
+onRequest: async (context) => {
+  return {
+    request: {
+      ...context.request,
+      options: {
+        ...context.request.options,
+        headers: {
+          ...context.request.options.headers,
+          "X-Custom": "value",
+          Authorization: `Bearer ${token}`,
+        },
+        body: {
+          ...context.request.options.body,
+          timestamp: Date.now(),
+        },
+      },
+    },
+  };
+};
+```
+
+### Helper Methods (New Way)
+
+```js
+onRequest: async (context) => {
+  context.setHeaders((headers) => ({
+    ...headers,
+    "X-Custom": "value",
+    Authorization: `Bearer ${token}`,
+  }));
+
+  context.setBody({
+    ...context.request.options.body,
+    timestamp: Date.now(),
+  });
+};
+```
+
+## Header Management
+
+### setHeaders(updater)
+
+The most commonly used helper for managing request headers:
+
+```js
+// Function updater (recommended)
+context.setHeaders((headers) => ({
+  ...headers,
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${token}`,
+  "X-Request-ID": generateId(),
+}));
+
+// Direct object (replaces all headers)
+context.setHeaders({
+  "Content-Type": "application/json",
+  Authorization: `Bearer ${token}`,
+});
+
+// Conditional headers
+context.setHeaders((headers) => {
+  const newHeaders = { ...headers };
+
+  if (needsAuth) {
+    newHeaders["Authorization"] = `Bearer ${token}`;
+  }
+
+  if (isJsonRequest) {
+    newHeaders["Content-Type"] = "application/json";
+  }
+
+  return newHeaders;
+});
+```
+
+### Real-World Header Examples
+
+```js
+// API versioning
+context.setHeaders((headers) => ({
+  ...headers,
+  Accept: "application/vnd.api+json",
+  "API-Version": "v2",
+}));
+
+// CORS and security headers
+context.setHeaders((headers) => ({
+  ...headers,
+  Origin: window.location.origin,
+  "X-Requested-With": "XMLHttpRequest",
+}));
+
+// Custom business headers
+context.setHeaders((headers) => ({
+  ...headers,
+  "X-Tenant-ID": getCurrentTenantId(),
+  "X-Feature-Flags": getEnabledFeatures().join(","),
+}));
+```
+
+## Body Management
+
+### setBody(body)
+
+Easily modify request bodies:
+
+```js
+// Add metadata to existing body
+context.setBody({
+  ...context.request.options.body,
+  timestamp: Date.now(),
+  requestId: generateRequestId(),
+  userAgent: navigator.userAgent,
+});
+
+// Transform FormData
+if (context.request.options.body instanceof FormData) {
+  const formData = context.request.options.body;
+  formData.append("timestamp", Date.now().toString());
+  formData.append("source", "web-app");
+  context.setBody(formData);
+}
+
+// JSON transformation
+const currentBody = context.request.options.body;
+if (typeof currentBody === "object" && currentBody !== null) {
+  context.setBody({
+    data: currentBody,
+    meta: {
+      timestamp: Date.now(),
+      version: "1.0",
+    },
+  });
+}
+```
+
+## URL Management
+
+### setUrl(url)
+
+Modify request URLs dynamically:
+
+```js
+// Add query parameters
+const currentUrl = new URL(context.request.url);
+currentUrl.searchParams.set("timestamp", Date.now().toString());
+currentUrl.searchParams.set("source", "app");
+context.setUrl(currentUrl.toString());
+
+// Environment-based URL modification
+if (process.env.NODE_ENV === "development") {
+  const devUrl = context.request.url.replace(
+    "api.example.com",
+    "dev-api.example.com",
+  );
+  context.setUrl(devUrl);
+}
+
+// Add versioning to URL
+const versionedUrl = context.request.url.replace("/api/", "/api/v2/");
+context.setUrl(versionedUrl);
+```
+
+## Method Management
+
+### setMethod(method)
+
+Change HTTP methods conditionally:
+
+```js
+// Conditional method override
+if (context.request.options.body && context.request.method === "GET") {
+  // Convert GET with body to POST
+  context.setMethod("POST");
+}
+
+// Method tunneling for restricted environments
+if (context.request.method === "DELETE" && isMethodRestricted("DELETE")) {
+  context.setMethod("POST");
+  context.setHeaders((headers) => ({
+    ...headers,
+    "X-HTTP-Method-Override": "DELETE",
+  }));
+}
+```
+
+## Options Management
+
+### setOptions(updater)
+
+Modify fetch options beyond headers and body:
+
+```js
+// Add timeout and credentials
+context.setOptions((options) => ({
+  ...options,
+  timeout: 30000,
+  credentials: "include",
+  cache: "no-cache",
+}));
+
+// Conditional options
+context.setOptions((options) => {
+  const newOptions = { ...options };
+
+  if (isLongRunningRequest()) {
+    newOptions.timeout = 120000; // 2 minutes
+  }
+
+  if (needsCORS()) {
+    newOptions.mode = "cors";
+    newOptions.credentials = "include";
+  }
+
+  return newOptions;
+});
+```
+
+## Error Management
+
+### setError(error) - onError Hook Only
+
+Modify errors in the onError hook:
+
+```js
+onError: async (context) => {
+  // Customize error message
+  context.setError({
+    message: "Something went wrong. Please try again.",
+    status: context.error?.status || "UNKNOWN",
+    originalError: context.error,
+  });
+
+  // Map specific errors
+  if (context.error?.status === 401) {
+    context.setError({
+      message: "Please sign in to continue",
+      status: "AUTHENTICATION_REQUIRED",
+      action: "LOGIN_REQUIRED",
+    });
+  }
+};
+```
+
+## Combining Helper Methods
+
+Use multiple helpers together for complex modifications:
+
+```js
+onRequest: async (context) => {
+  // Add authentication
+  const token = getAuthToken();
+  if (token) {
+    context.setHeaders((headers) => ({
+      ...headers,
+      Authorization: `Bearer ${token}`,
+    }));
+  }
+
+  // Add request metadata
+  context.setBody({
+    ...context.request.options.body,
+    meta: {
+      timestamp: Date.now(),
+      userAgent: navigator.userAgent,
+      sessionId: getSessionId(),
+    },
+  });
+
+  // Add tracking parameters
+  const url = new URL(context.request.url);
+  url.searchParams.set("tracking", getTrackingId());
+  context.setUrl(url.toString());
+
+  // Set options for authenticated requests
+  context.setOptions((options) => ({
+    ...options,
+    credentials: "include",
+    timeout: 30000,
+  }));
+};
+```
+
+## Real-World Patterns
+
+### API Key Management
+
+```js
+onRequest: async (context) => {
+  const apiKey = getApiKey();
+
+  if (context.request.url.includes("/api/")) {
+    context.setHeaders((headers) => ({
+      ...headers,
+      "X-API-Key": apiKey,
+      Accept: "application/json",
+    }));
+  }
+};
+```
+
+### Request Signing
+
+```js
+onRequest: async (context) => {
+  const { method, url } = context.request;
+  const body = JSON.stringify(context.request.options.body || {});
+  const timestamp = Date.now().toString();
+
+  const signature = generateSignature(method + url + body + timestamp);
+
+  context.setHeaders((headers) => ({
+    ...headers,
+    "X-Timestamp": timestamp,
+    "X-Signature": signature,
+  }));
+};
+```
+
+### Retry Logic Setup
+
+```js
+onRequest: async (context) => {
+  // Add retry metadata
+  context.setOptions((options) => ({
+    ...options,
+    retryCount: options.retryCount || 0,
+    maxRetries: 3,
+  }));
+};
+```
+
+### Development vs Production
+
+```js
+onRequest: async (context) => {
+  if (process.env.NODE_ENV === "development") {
+    // Add debug headers
+    context.setHeaders((headers) => ({
+      ...headers,
+      "X-Debug": "true",
+      "X-Environment": "development",
+    }));
+
+    // Log request details
+    console.log("DEV REQUEST:", {
+      method: context.request.method,
+      url: context.request.url,
+      body: context.request.options.body,
+    });
+  }
+};
+```
+
+## Helper Method Benefits
+
+**Readability**: Much cleaner than complex object spreading
+**Type Safety**: Better TypeScript support and IntelliSense
+**Error Prevention**: Reduces common mistakes with object mutations
+**Consistency**: Standardized way to modify request context
+**Maintainability**: Easier to understand and modify later

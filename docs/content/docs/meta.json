@@ -1,0 +1,11 @@
+{
+  "title": "Documentation",
+  "pages": [
+    "index",
+    "create-instance",
+    "create-instance-options",
+    "configuration/options",
+    "methods",
+    "notes-for-nerds"
+  ]
+}

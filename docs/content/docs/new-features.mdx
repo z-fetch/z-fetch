@@ -1,0 +1,439 @@
+---
+title: New Features (Deprecated)
+description: This page has been reorganized into modular sections for better navigation.
+---
+
+<Callout title="Documentation Reorganized" type="warn">
+  This page has been split into modular sections for easier reading and
+  navigation. Please use the new organized sections below.
+</Callout>
+
+## 📚 New Modular Feature Documentation
+
+The new features documentation has been reorganized into focused sections:
+
+### 🚀 Core Features
+
+- **[Progress Tracking](/docs/features/progress-tracking)** - Upload/download progress monitoring
+- **[Streaming Utilities](/docs/features/streaming)** - Response streaming and chunk processing
+- **[Error Handling](/docs/features/error-handling)** - Comprehensive error management with onError hook
+
+### 🪝 Enhanced Hooks
+
+- **[Hook Basics](/docs/hooks/basics)** - Understanding lifecycle hooks
+- **[Helper Methods](/docs/hooks/helper-methods)** - Simplified hooks API with intuitive helper methods
+
+### ⚙️ Configuration
+
+- **[Configuration Options](/docs/configuration/options)** - Complete instance and request configuration guide
+
+## Quick Navigation
+
+<Cards>
+  <Card
+    title="Progress Tracking"
+    href="/docs/features/progress-tracking"
+    description="Upload/download progress"
+  />
+  <Card
+    title="Streaming"
+    href="/docs/features/streaming"
+    description="Response streaming utilities"
+  />
+  <Card
+    title="Error Handling"
+    href="/docs/features/error-handling"
+    description="Comprehensive error management"
+  />
+  <Card
+    title="Helper Methods"
+    href="/docs/hooks/helper-methods"
+    description="Simplified hooks API"
+  />
+</Cards>
+
+```js
+// Before: Complex and error-prone
+onRequest: async (context) => {
+  return {
+    request: {
+      ...context.request,
+      options: {
+        ...context.request.options,
+        headers: { ...context.request.options.headers, "X-Custom": "value" },
+      },
+    },
+  };
+};
+
+// After: Simple and clear
+onRequest: async (context) => {
+  context.setHeaders((headers) => ({ ...headers, "X-Custom": "value" }));
+  context.setBody({ ...body, timestamp: Date.now() });
+};
+```
+
+**Available helpers:** `setHeaders()`, `setBody()`, `setOptions()`, `setUrl()`, `setMethod()`, `setError()`
+
+### Upload/Download Progress & Streaming (Issue #2)
+
+Added comprehensive progress tracking and streaming capabilities:
+
+```js
+const api = createInstance({
+  onUploadProgress: (event) => {
+    console.log(`Upload: ${Math.round((event.loaded / event.total) * 100)}%`);
+  },
+  onDownloadProgress: (event) => {
+    console.log(`Download: ${Math.round((event.loaded / event.total) * 100)}%`);
+  },
+});
+
+// Progress tracking works automatically
+await api.post("/upload", { body: formData });
+
+// Stream processing utilities
+const result = await api.get("/stream");
+await result.streamChunks((chunk) => processChunk(chunk));
+const stringData = await result.streamToString();
+```
+
+**Progress Features:**
+
+- **Automatic XMLHttpRequest usage** when progress callbacks are provided
+- **Upload progress tracking** with `onUploadProgress`
+- **Download progress tracking** with `onDownloadProgress`
+- **Seamless fallback** to fetch when no progress needed
+
+**Streaming Features:**
+
+- **`streamToString()`** - Convert response to string
+- **`streamToBlob()`** - Convert to Blob for files/media
+- **`streamToArrayBuffer()`** - Convert to ArrayBuffer for binary data
+- **`streamChunks(callback)`** - Process chunks as they arrive
+- **Automatic resource cleanup** and error handling
+
+### Comprehensive Error Handling (New Feature)
+
+Added `onError` hook that intercepts all error types with modification capabilities:
+
+```js
+const api = createInstance({
+  hooks: {
+    onError: (context) => {
+      // Handle all error types: HTTP, network, timeout, parse errors
+      console.log("Error occurred:", context.error);
+
+      // Modify error using helper
+      context.setError({
+        message: "User-friendly error message",
+        status: context.error?.status || "UNKNOWN",
+      });
+
+      // Or modify via return value
+      return {
+        error: { message: "Custom message", status: "CUSTOM_ERROR" },
+      };
+    },
+  },
+});
+```
+
+**Error Hook Features:**
+
+- **Complete error coverage**: HTTP errors, network failures, timeouts, parse errors
+- **Error modification**: Change error messages and status codes
+- **Context access**: Full request details, configuration, and error information
+- **Integration**: Works with error mapping and alongside other hooks
+- **Dual modification methods**: Helper functions and return value patterns
+
+## 🔧 Technical Implementation
+
+### Smart XMLHttpRequest Usage
+
+Z-Fetch automatically switches between XMLHttpRequest and fetch based on features needed:
+
+```js
+// Uses XMLHttpRequest when progress is needed
+const result = await api.post("/upload", {
+  body: formData,
+  onUploadProgress: (event) => updateProgress(event),
+});
+
+// Uses fetch for regular requests (better performance)
+const result = await api.get("/data");
+```
+
+### Enhanced Error Handling
+
+Comprehensive error handling with pattern matching:
+
+```js
+const api = createInstance({
+  errorMapping: {
+    // Exact status codes
+    401: "Please sign in again",
+    404: "Resource not found",
+
+    // Pattern matching
+    "fetch failed": "Network connection problem",
+    timeout: "Request took too long",
+
+    // Range matching
+    500: "Server error - try again later",
+  },
+
+  hooks: {
+    onError: (context) => {
+      // Additional error processing
+      if (context.error?.status === 401) {
+        // Clear session and redirect
+        clearAuthAndRedirect();
+      }
+    },
+  },
+});
+```
+
+### Response Body Management
+
+Fixed response body consumption issues using `Response.clone()`:
+
+```js
+// Data extraction preserves response body for streaming
+const result = await api.get("/stream-data");
+
+// Both work correctly
+const data = result.data; // Extracted automatically
+const stream = await result.streamChunks((chunk) => process(chunk)); // Uses cloned response
+```
+
+## 🎨 Real-World Examples
+
+### File Upload with Progress
+
+```js
+const uploadWithProgress = async (file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const api = createInstance({
+    baseUrl: "https://api.example.com",
+    onUploadProgress: (event) => {
+      const progress = Math.round((event.loaded / event.total) * 100);
+      updateProgressBar(progress);
+    },
+    hooks: {
+      onError: (context) => {
+        if (context.error?.status === 413) {
+          context.setError({
+            message: "File too large. Please choose a smaller file.",
+            status: "FILE_TOO_LARGE",
+          });
+        }
+      },
+    },
+  });
+
+  const result = await api.post("/upload", { body: formData });
+  return result;
+};
+```
+
+### Large Dataset Processing
+
+```js
+const processLargeDataset = async () => {
+  const api = createInstance({
+    baseUrl: "https://api.example.com",
+    onDownloadProgress: (event) => {
+      const progress = Math.round((event.loaded / event.total) * 100);
+      console.log(`Downloading dataset: ${progress}%`);
+    },
+  });
+
+  const result = await api.get("/large-dataset");
+
+  let processedCount = 0;
+  await result.streamChunks((chunk) => {
+    const textChunk = new TextDecoder().decode(chunk);
+    const records = textChunk.split("\n").filter((line) => line.trim());
+
+    records.forEach((record) => {
+      if (record) {
+        processRecord(JSON.parse(record));
+        processedCount++;
+      }
+    });
+
+    console.log(`Processed ${processedCount} records...`);
+  });
+
+  console.log(`Total processed: ${processedCount} records`);
+};
+```
+
+### Complete API Client Setup
+
+```js
+const createApiClient = () => {
+  return createInstance({
+    baseUrl: "https://api.example.com",
+    bearerToken: localStorage.getItem("auth_token"),
+    timeout: 30000,
+    withCredentials: true,
+
+    // Progress tracking
+    onUploadProgress: (event) => {
+      showUploadProgress(Math.round((event.loaded / event.total) * 100));
+    },
+    onDownloadProgress: (event) => {
+      showDownloadProgress(Math.round((event.loaded / event.total) * 100));
+    },
+
+    // Error mapping
+    errorMapping: {
+      401: "Session expired. Please sign in again.",
+      403: "Access denied. Contact support if needed.",
+      404: "Resource not found.",
+      429: "Too many requests. Please slow down.",
+      500: "Server error. Please try again later.",
+      "fetch failed": "Network connection failed. Check your internet.",
+      timeout: "Request timeout. Please try again.",
+    },
+
+    // Comprehensive hooks
+    hooks: {
+      onRequest: async (context) => {
+        // Add request ID for debugging
+        context.setHeaders((headers) => ({
+          ...headers,
+          "X-Request-ID": crypto.randomUUID(),
+        }));
+
+        // Add timestamp to POST/PUT requests
+        if (["POST", "PUT", "PATCH"].includes(context.request.method)) {
+          const body = context.request.options.body;
+          if (body && typeof body === "object") {
+            context.setBody({
+              ...body,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }
+      },
+
+      onResponse: async ({ result }) => {
+        // Add metadata to successful responses
+        if (result?.data && !result.error) {
+          return {
+            result: {
+              ...result,
+              data: {
+                ...result.data,
+                _meta: {
+                  processedAt: new Date().toISOString(),
+                  version: "1.0",
+                },
+              },
+            },
+          };
+        }
+        return { result };
+      },
+
+      onError: (context) => {
+        // Handle authentication errors
+        if (context.error?.status === 401) {
+          localStorage.removeItem("auth_token");
+          window.location.href = "/login";
+          return; // Don't modify error, just handle it
+        }
+
+        // Handle rate limiting
+        if (context.error?.status === 429) {
+          context.setError({
+            message: "Too many requests. Please wait before trying again.",
+            status: "RATE_LIMITED",
+          });
+        }
+
+        // Handle network errors
+        if (context.error?.status === "NETWORK_ERROR") {
+          context.setError({
+            message:
+              "Connection lost. Please check your internet and try again.",
+            status: "CONNECTION_LOST",
+          });
+        }
+      },
+    },
+  });
+};
+```
+
+## 🔄 Migration Guide
+
+### Updating Hooks
+
+If you're using the old spreading patterns:
+
+```js
+// Old approach
+onRequest: async (context) => {
+  return {
+    request: {
+      ...context.request,
+      options: {
+        ...context.request.options,
+        headers: { ...context.request.options.headers, "X-Auth": token },
+      },
+    },
+  };
+};
+
+// New approach (recommended)
+onRequest: async (context) => {
+  context.setHeaders((headers) => ({ ...headers, "X-Auth": token }));
+};
+```
+
+### Adding Progress Tracking
+
+Simply add progress callbacks to your instance:
+
+```js
+const api = createInstance({
+  // ... existing config
+  onUploadProgress: (event) => {
+    updateProgressBar("upload", event.loaded, event.total);
+  },
+  onDownloadProgress: (event) => {
+    updateProgressBar("download", event.loaded, event.total);
+  },
+});
+```
+
+### Adding Error Handling
+
+Add error mapping and onError hook:
+
+```js
+const api = createInstance({
+  // ... existing config
+  errorMapping: {
+    401: "Please sign in again",
+    404: "Not found",
+    "fetch failed": "Network error",
+  },
+  hooks: {
+    // ... existing hooks
+    onError: (context) => {
+      console.error("API Error:", context.error);
+      // Handle specific errors
+    },
+  },
+});
+```
+
+All new features are **100% backwards compatible** - existing code continues to work unchanged while new features are opt-in.

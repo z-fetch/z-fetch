@@ -29,6 +29,7 @@ const { data, error, response } = result;
 4. Each request can also take in z-fetch specific options but also all native fetch options are supported.
 5. Each request returns a result object containing the response data, error, and the native response object if you need more control over the response. And other stuff too for extra functionality such as refetching etc.
 6. You can also setup some interceptors to modify requests or responses before they are sent or received using hooks, see [using hooks](/docs/using-hooks) for more details.
+7. Enhanced features include streaming support, progress tracking, error mapping, and improved hooks system for comprehensive request lifecycle management.
 
 <Callout title="Dev Note" type="info">
  Z-Fetch is 100% type safe, so expect some cool auto-completions from your IDE.
@@ -100,3 +101,12 @@ const config = api.helpers.getConfig();
 // Set a bearer token for authentication
 api.helpers.setBearerToken('your-token-here');
 ```
+
+## Enhanced Features
+
+With Z-Fetch instances, you get access to powerful new features:
+
+- **[🌊 Streaming Support](/docs/features/streaming)** - Process response streams with built-in utilities
+- **[📊 Progress Tracking](/docs/features/progress-tracking)** - Real-time upload and download progress monitoring
+- **[🚨 Error Handling](/docs/features/error-handling)** - Comprehensive error handling with onError hook and error mapping
+- **[💪 Using Hooks](/docs/using-hooks)** - Enhanced hooks system for request lifecycle management

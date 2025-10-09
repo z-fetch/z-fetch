@@ -1,0 +1,420 @@
+---
+title: 🚨 Error Handling
+description: Comprehensive error handling with onError hook, error mapping, and custom error modification.
+---
+
+Z-Fetch provides comprehensive error handling capabilities that intercept **all error types** and allow you to customize error messages and behavior throughout your application.
+
+## Error Types Covered
+
+The error handling system captures:
+
+- **HTTP errors** (4xx/5xx status codes)
+- **Network errors** (connection failures, DNS issues)
+- **Timeout errors** (request timeouts → status: `TIMEOUT`, message: `"Request timed out!"`)
+- **Cancellation** (user-initiated abort → status: `CANCELED`, message: `"Request canceled"`)
+- **Parse errors** (invalid JSON responses)
+- **Request errors** (malformed requests)
+
+<Callout title="Complete Coverage" type="info">
+  The onError hook provides comprehensive error coverage and modification
+  capabilities for better user experience.
+</Callout>
+
+## Cancellation and Timeout
+
+Z-Fetch standardizes cancellation and timeouts across both fetch and XHR paths:
+
+- Cancellation (manual abort) yields `error.status = 'CANCELED'` and `error.message = 'Request canceled'`.
+- Timeout (exceeding configured `timeout`) yields `error.status = 'TIMEOUT'` and `error.message = 'Request timed out!'`.
+- Error mapping does not override cancel/timeout messages by default.
+
+```js
+// Cancel via cancelable promise
+const p = api.get("/users");
+setTimeout(() => p.cancel(), 10);
+const r = await p; // r.error?.status === 'CANCELED'
+
+// Timeout
+const r2 = await api.get("/slow", { timeout: 50 });
+if (r2.error?.status === "TIMEOUT") {
+  // handle timeout
+}
+```
+
+## onError Hook
+
+The `onError` hook intercepts all errors and allows you to modify them:
+
+```js
+import { createInstance } from "@z-fetch/fetch";
+
+const api = createInstance({
+  hooks: {
+    onError: (context) => {
+      console.log("Error occurred:", context.error);
+
+      // Access full context
+      console.log("Request URL:", context.request?.url);
+      console.log("Request method:", context.request?.method);
+      console.log("Config:", context.config);
+
+      // Modify error using helper
+      context.setError({
+        message: "Something went wrong. Please try again.",
+        status: context.error?.status || "UNKNOWN",
+        originalError: context.error,
+      });
+    },
+  },
+});
+```
+
+## Error Context
+
+The onError hook receives a comprehensive context object:
+
+```js
+{
+  request: {          // Request information
+    url: string,
+    method: string,
+    options: RequestOptions
+  },
+  error: {            // Original error
+    message: string,
+    status?: number,
+    name?: string,
+    // ... other error properties
+  },
+  config: {           // Instance configuration
+    baseUrl?: string,
+    errorMapping?: object,
+    // ... other config
+  },
+  setError: (error) => void  // Helper to modify error
+}
+```
+
+## Error Modification
+
+### Using setError Helper
+
+```js
+onError: (context) => {
+  if (context.error?.status === 401) {
+    context.setError({
+      message: "Please sign in to continue",
+      status: "AUTHENTICATION_REQUIRED",
+      action: "LOGIN_REQUIRED",
+    });
+  } else if (context.error?.status === 403) {
+    context.setError({
+      message: "You do not have permission to access this resource",
+      status: "AUTHORIZATION_FAILED",
+      action: "CONTACT_ADMIN",
+    });
+  } else if (context.error?.status >= 500) {
+    context.setError({
+      message: "Server error. Please try again later.",
+      status: "SERVER_ERROR",
+      action: "RETRY_LATER",
+    });
+  }
+};
+```
+
+### Using Return Values
+
+```js
+onError: (context) => {
+  return {
+    error: {
+      message: "Custom error message",
+      status: "CUSTOM_ERROR",
+      timestamp: Date.now(),
+      requestId: context.request?.headers?.["X-Request-ID"],
+    },
+  };
+};
+```
+
+## Error Mapping
+
+Define custom error messages for common error patterns:
+
+```js
+const api = createInstance({
+  errorMapping: {
+    // HTTP status codes
+    401: "Authentication failed - please sign in again",
+    403: "Access denied - insufficient permissions",
+    404: "Resource not found",
+    429: "Too many requests - please slow down",
+    500: "Server error - please try again later",
+    503: "Service temporarily unavailable",
+
+    // Network error patterns
+    "fetch failed": "Network connection failed",
+    NetworkError: "Network connection lost",
+    timeout: "Request timed out - please try again",
+
+    // Custom patterns
+    ENOTFOUND: "Unable to connect to server",
+    ECONNREFUSED: "Connection refused by server",
+  },
+});
+```
+
+### Pattern Matching
+
+Error mapping supports flexible pattern matching:
+
+```js
+const api = createInstance({
+  errorMapping: {
+    // Exact status codes
+    404: "Page not found",
+
+    // Error message patterns (case-insensitive)
+    "network error": "Please check your internet connection",
+    timeout: "Request took too long - please try again",
+    json: "Invalid response format received",
+
+    // Multiple patterns for the same message
+    ENOTFOUND: "Cannot connect to server",
+    ECONNREFUSED: "Cannot connect to server",
+    ENETUNREACH: "Cannot connect to server",
+  },
+});
+```
+
+## Real-World Examples
+
+### Authentication Error Handling
+
+```js
+const api = createInstance({
+  hooks: {
+    onError: (context) => {
+      if (context.error?.status === 401) {
+        // Clear stored tokens
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("refreshToken");
+
+        // Redirect to login
+        window.location.href = "/login";
+
+        context.setError({
+          message: "Your session has expired. Please sign in again.",
+          status: "SESSION_EXPIRED",
+          action: "LOGIN_REQUIRED",
+        });
+      }
+    },
+  },
+});
+```
+
+### Retry Logic with Error Handling
+
+```js
+const api = createInstance({
+  hooks: {
+    onError: (context) => {
+      const retryCount = context.request?.options?.retryCount || 0;
+      const maxRetries = 3;
+
+      // Retry for network errors and 5xx status codes
+      if (retryCount < maxRetries) {
+        const shouldRetry =
+          context.error?.status >= 500 ||
+          context.error?.message?.includes("network") ||
+          context.error?.message?.includes("timeout");
+
+        if (shouldRetry) {
+          context.setError({
+            message: `Request failed, retrying... (${retryCount + 1}/${maxRetries})`,
+            status: "RETRYING",
+            retryCount: retryCount + 1,
+            shouldRetry: true,
+          });
+          return;
+        }
+      }
+
+      // Max retries reached
+      context.setError({
+        message: "Request failed after multiple attempts",
+        status: "MAX_RETRIES_EXCEEDED",
+        attempts: retryCount + 1,
+      });
+    },
+  },
+});
+```
+
+### User-Friendly Error Messages
+
+```js
+const api = createInstance({
+  errorMapping: {
+    401: "Please sign in to continue",
+    403: "You do not have permission for this action",
+    404: "The requested item was not found",
+    422: "Please check your input and try again",
+    429: "You are making too many requests. Please wait a moment.",
+    500: "Something went wrong on our end. Please try again.",
+    503: "Service is temporarily unavailable. Please try again later.",
+  },
+
+  hooks: {
+    onError: (context) => {
+      // Add user-friendly context
+      const baseMessage = context.error?.message || "An error occurred";
+
+      context.setError({
+        message: baseMessage,
+        userMessage: getUserFriendlyMessage(context.error),
+        timestamp: new Date().toISOString(),
+        canRetry: isRetryableError(context.error),
+        supportContact:
+          context.error?.status >= 500 ? "support@example.com" : null,
+      });
+    },
+  },
+});
+
+function getUserFriendlyMessage(error) {
+  if (error?.status >= 500) {
+    return "We are experiencing technical difficulties. Our team has been notified.";
+  }
+
+  if (error?.status >= 400 && error?.status < 500) {
+    return "There was an issue with your request. Please check your input and try again.";
+  }
+
+  if (error?.message?.includes("network")) {
+    return "Please check your internet connection and try again.";
+  }
+
+  return "Something unexpected happened. Please try again.";
+}
+```
+
+### Error Logging and Tracking
+
+```js
+const api = createInstance({
+  hooks: {
+    onError: (context) => {
+      // Log error details
+      console.error("Request failed:", {
+        url: context.request?.url,
+        method: context.request?.method,
+        status: context.error?.status,
+        message: context.error?.message,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Track errors for analytics
+      if (typeof gtag !== "undefined") {
+        gtag("event", "api_error", {
+          error_status: context.error?.status || "unknown",
+          error_message: context.error?.message || "unknown",
+          request_url: context.request?.url,
+          request_method: context.request?.method,
+        });
+      }
+
+      // Send to error tracking service
+      if (context.error?.status >= 500) {
+        sendToErrorTracking({
+          error: context.error,
+          request: context.request,
+          userAgent: navigator.userAgent,
+          timestamp: Date.now(),
+        });
+      }
+
+      // Keep original error but add tracking
+      context.setError({
+        ...context.error,
+        tracked: true,
+        errorId: generateErrorId(),
+      });
+    },
+  },
+});
+```
+
+## Integration with Error Mapping
+
+The onError hook works alongside error mapping:
+
+```js
+const api = createInstance({
+  // Error mapping runs first
+  errorMapping: {
+    404: "Resource not found",
+    500: "Internal server error",
+  },
+
+  hooks: {
+    // onError hook runs after error mapping
+    onError: (context) => {
+      // The error message may already be mapped
+      console.log("Mapped error message:", context.error?.message);
+
+      // Add additional context
+      context.setError({
+        ...context.error,
+        helpText: getHelpText(context.error?.status),
+        timestamp: Date.now(),
+      });
+    },
+  },
+});
+```
+
+## Error Recovery Patterns
+
+### Fallback Data
+
+```js
+onError: (context) => {
+  if (context.request?.url?.includes("/api/posts")) {
+    // Provide fallback data for posts
+    context.setError({
+      message: "Unable to load latest posts",
+      fallbackData: getCachedPosts(),
+      hasFallback: true,
+    });
+  }
+};
+```
+
+### Graceful Degradation
+
+```js
+onError: (context) => {
+  const isFeatureRequest = context.request?.url?.includes("/features");
+
+  if (isFeatureRequest) {
+    context.setError({
+      message: "Some features may be unavailable",
+      degradedMode: true,
+      availableFeatures: getBasicFeatures(),
+    });
+  }
+};
+```
+
+## Error Hook Best Practices
+
+**Comprehensive Logging**: Always log errors for debugging
+**User-Friendly Messages**: Provide clear, actionable error messages
+**Error Classification**: Categorize errors for better handling
+**Context Preservation**: Keep original error information
+**Recovery Options**: Provide fallback data when possible
+**Security**: Don't expose sensitive error details to users
