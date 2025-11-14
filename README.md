@@ -219,6 +219,75 @@ if (result.error) {
 }
 ```
 
+### Error Handling Configuration (New Feature)
+
+Choose between returning errors in `result.error` (default) or throwing errors like traditional fetch/axios:
+
+#### Default Behavior - Errors Returned in Result
+
+```js
+import { GET } from "@z-fetch/fetch";
+
+// By default, errors are returned in result.error
+const result = await GET("https://api.example.com/users");
+if (result.error) {
+  console.error("Request failed:", result.error.message);
+  console.error("Status:", result.error.status);
+} else {
+  console.log("Data:", result.data);
+}
+```
+
+#### throwOnError: true - Errors Are Thrown
+
+```js
+import { GET, createInstance } from "@z-fetch/fetch";
+
+// Enable throwOnError for traditional try-catch error handling
+try {
+  const result = await GET("https://api.example.com/users", {
+    throwOnError: true,
+  });
+  console.log("Data:", result.data);
+} catch (error) {
+  console.error("Request failed:", error.message);
+  console.error("Status:", error.status);
+}
+
+// Or configure it at the instance level
+const api = createInstance({
+  baseUrl: "https://api.example.com",
+  throwOnError: true,
+  errorMapping: {
+    401: "Please log in again",
+    500: "Server error occurred",
+  },
+});
+
+// All requests will now throw on error
+try {
+  const users = await api.get("/users");
+  const posts = await api.get("/posts");
+  console.log({ users, posts });
+} catch (error) {
+  // Error will have custom message from errorMapping
+  console.error("API Error:", error.message, error.status);
+}
+
+// You can still override per request
+const result = await api.get("/users", { throwOnError: false });
+if (result.error) {
+  // Back to the default behavior for this request
+  console.error("Error:", result.error);
+}
+```
+
+**Benefits:**
+- **Default (throwOnError: false)**: Safer for beginners, no unexpected crashes, explicit error checking
+- **throwOnError: true**: Familiar for developers coming from fetch/axios, cleaner async/await code with try-catch
+- **Flexible**: Configure globally or per-request based on your needs
+- **Works with all features**: Retries, error mapping, hooks, and caching all work with both modes
+
 ## 🌟 Contributing
 
 That’s it for now! More features will surely come, but this version of Z-Fetch already elevates fetching in your applications with enhanced flexibility and control.

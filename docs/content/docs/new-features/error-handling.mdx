@@ -96,6 +96,63 @@ The onError hook receives a comprehensive context object:
 }
 ```
 
+## Error Handling Modes
+
+Z-Fetch supports two error handling modes to suit different coding styles:
+
+### Default Mode (throwOnError: false)
+
+By default, errors are returned in `result.error` rather than thrown. This is safer and prevents unexpected crashes:
+
+```js
+const result = await api.get("/users");
+if (result.error) {
+  console.error("Error:", result.error.message);
+} else {
+  console.log("Data:", result.data);
+}
+```
+
+### Throwing Mode (throwOnError: true)
+
+Enable `throwOnError` for traditional try-catch error handling:
+
+```js
+import { GET, createInstance } from "@z-fetch/fetch";
+
+try {
+  const result = await GET("/users", { throwOnError: true });
+  console.log("Data:", result.data);
+} catch (error) {
+  console.error("Error:", error.message, error.status);
+}
+
+// Configure at instance level
+const api = createInstance({
+  baseUrl: "https://api.example.com",
+  throwOnError: true,
+});
+
+try {
+  const users = await api.get("/users");
+  const posts = await api.get("/posts");
+} catch (error) {
+  console.error("API Error:", error.message);
+}
+
+// Override per request
+const result = await api.get("/users", { throwOnError: false });
+if (result.error) {
+  // Back to default behavior
+}
+```
+
+<Callout title="Choose What Fits Your Style" type="info">
+  **Default mode** is safer and more explicit. **Throwing mode** is familiar to
+  developers coming from fetch/axios. Both modes work with all features: error
+  mapping, hooks, retries, and caching.
+</Callout>
+
 ## Error Modification
 
 ### Using setError Helper

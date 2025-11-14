@@ -716,9 +716,13 @@ function createInstance(instanceConfig = {}) {
       }
       return context.result;
     };
-    const promise = new Promise(async (resolve) => {
-      const res = await runner();
-      resolve(res);
+    const promise = new Promise(async (resolve, reject) => {
+      try {
+        const res = await runner();
+        resolve(res);
+      } catch (error) {
+        reject(error);
+      }
     });
     promise.cancel = () => {
       basePromise?.cancel();
