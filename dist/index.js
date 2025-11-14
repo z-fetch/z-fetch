@@ -20,6 +20,7 @@ var defaultConfig = {
   },
   hooks: {},
   errorMapping: {},
+  mapBackendErrors: false,
   throwOnError: false,
   useXHRForProgress: false
 };
@@ -107,7 +108,29 @@ async function requestWithProgress(url, method, options = { ...defaultConfig }, 
           error = await handleError(error);
         }
       } else {
-        error = { message: xhr.statusText, status: xhr.status };
+        const originalMessage = xhr.statusText;
+        let mappedMessage = originalMessage;
+        if (mergedConfig.mapBackendErrors && mergedConfig.errorMapping) {
+          if (mergedConfig.errorMapping[xhr.status]) {
+            mappedMessage = mergedConfig.errorMapping[xhr.status];
+          } else {
+            for (const [pattern, message] of Object.entries(
+              mergedConfig.errorMapping
+            )) {
+              if (typeof pattern === "string") {
+                if (pattern === xhr.status.toString()) {
+                  mappedMessage = message;
+                  break;
+                }
+                if (originalMessage.toLowerCase().includes(pattern.toLowerCase()) || xhr.status.toString().includes(pattern)) {
+                  mappedMessage = message;
+                  break;
+                }
+              }
+            }
+          }
+        }
+        error = { message: mappedMessage, status: xhr.status };
         error = await handleError(error);
       }
       if (mergedConfig.throwOnError && error) {
@@ -312,7 +335,29 @@ function request(url, method, options = { ...defaultConfig }) {
         const response = await fetch(fullUrl, fetchOptions);
         clearTimeout(timeoutId);
         if (!response.ok) {
-          error = { message: response.statusText, status: response.status };
+          const originalMessage = response.statusText;
+          let mappedMessage = originalMessage;
+          if (mergedConfig.mapBackendErrors && mergedConfig.errorMapping) {
+            if (mergedConfig.errorMapping[response.status]) {
+              mappedMessage = mergedConfig.errorMapping[response.status];
+            } else {
+              for (const [pattern, message] of Object.entries(
+                mergedConfig.errorMapping
+              )) {
+                if (typeof pattern === "string") {
+                  if (pattern === response.status.toString()) {
+                    mappedMessage = message;
+                    break;
+                  }
+                  if (originalMessage.toLowerCase().includes(pattern.toLowerCase()) || response.status.toString().includes(pattern)) {
+                    mappedMessage = message;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+          error = { message: mappedMessage, status: response.status };
           error = await handleError(error);
         } else {
           const responseForData = response.clone();

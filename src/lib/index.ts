@@ -114,6 +114,11 @@ export type Context = {
  *   bearerToken: 'your-token',
  *   headers: { 'Content-Type': 'application/json' },
  *   throwOnError: true, // Throw errors instead of returning them
+ *   mapBackendErrors: true, // Enable error mapping for backend HTTP errors
+ *   errorMapping: {
+ *     401: 'Please log in',
+ *     500: 'Server error'
+ *   },
  *   hooks: {
  *     onRequest: (context) => {
  *       context.setHeaders(headers => ({ ...headers, 'X-Timestamp': Date.now().toString() }));
@@ -173,6 +178,8 @@ export type Config = {
     [statusCode: number]: string;
     [statusPattern: string]: string;
   };
+  /** Whether to apply error mapping to backend HTTP errors (400s, 500s). Default: false (only maps z-fetch internal errors) */
+  mapBackendErrors: boolean;
   /** Whether to throw errors instead of returning them in result.error */
   throwOnError: boolean;
   /** Callback for upload progress tracking */
@@ -304,6 +311,7 @@ export const defaultConfig: Config = {
   },
   hooks: {},
   errorMapping: {},
+  mapBackendErrors: false,
   throwOnError: false,
   useXHRForProgress: false,
 };
@@ -438,8 +446,39 @@ async function requestWithProgress(
           error = await handleError(error);
         }
       } else {
-        // Return backend errors as-is without mapping
-        error = { message: xhr.statusText, status: xhr.status };
+        const originalMessage = xhr.statusText;
+        let mappedMessage = originalMessage;
+
+        // Apply error mapping to backend errors if mapBackendErrors is enabled
+        if (mergedConfig.mapBackendErrors && mergedConfig.errorMapping) {
+          // Check for exact status code match
+          if (mergedConfig.errorMapping[xhr.status]) {
+            mappedMessage = mergedConfig.errorMapping[xhr.status];
+          } else {
+            // Check for pattern matches
+            for (const [pattern, message] of Object.entries(
+              mergedConfig.errorMapping,
+            )) {
+              if (typeof pattern === "string") {
+                if (pattern === xhr.status.toString()) {
+                  mappedMessage = message;
+                  break;
+                }
+                if (
+                  originalMessage
+                    .toLowerCase()
+                    .includes(pattern.toLowerCase()) ||
+                  xhr.status.toString().includes(pattern)
+                ) {
+                  mappedMessage = message;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        error = { message: mappedMessage, status: xhr.status };
         error = await handleError(error);
       }
 
@@ -719,8 +758,41 @@ function request(
         clearTimeout(timeoutId);
 
         if (!response.ok) {
-          // Return backend errors as-is without mapping
-          error = { message: response.statusText, status: response.status };
+          const originalMessage = response.statusText;
+          let mappedMessage = originalMessage;
+
+          // Apply error mapping to backend errors if mapBackendErrors is enabled
+          if (mergedConfig.mapBackendErrors && mergedConfig.errorMapping) {
+            // Check for exact status code match
+            if (mergedConfig.errorMapping[response.status]) {
+              mappedMessage = mergedConfig.errorMapping[response.status];
+            } else {
+              // Check for pattern matches
+              for (const [pattern, message] of Object.entries(
+                mergedConfig.errorMapping,
+              )) {
+                if (typeof pattern === "string") {
+                  // Check if status code matches pattern
+                  if (pattern === response.status.toString()) {
+                    mappedMessage = message;
+                    break;
+                  }
+                  // Check if original message contains pattern (case insensitive)
+                  if (
+                    originalMessage
+                      .toLowerCase()
+                      .includes(pattern.toLowerCase()) ||
+                    response.status.toString().includes(pattern)
+                  ) {
+                    mappedMessage = message;
+                    break;
+                  }
+                }
+              }
+            }
+          }
+
+          error = { message: mappedMessage, status: response.status };
           error = await handleError(error);
         } else {
           // Clone response for data extraction to preserve body for streaming utilities

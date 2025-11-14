@@ -235,25 +235,41 @@ try {
 
 ### Error Mapping
 
-Map z-fetch internal errors to user-friendly text:
+Map errors to user-friendly text. By default, only z-fetch internal errors are mapped:
 
 ```js
 const api = createInstance({
   throwOnError: true, // Works with error mapping
   errorMapping: {
-    // Map z-fetch internal errors only
+    // Map z-fetch internal errors (default behavior)
     "fetch failed": "Network connection failed",
     "network error": "Unable to connect to server",
     NetworkError: "Connection lost",
   },
 });
 
-// Backend HTTP errors (400s, 500s) are NOT mapped
-// They use the original response.statusText from your API
+// Backend HTTP errors use original response.statusText from your API
 ```
 
-<Callout title="Backend Errors Not Mapped" type="warn">
-  Error mapping only applies to z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED). Backend HTTP status errors are returned as-is.
+Optionally enable mapping for backend HTTP errors:
+
+```js
+const api = createInstance({
+  mapBackendErrors: true, // Enable mapping for backend errors
+  errorMapping: {
+    // Map backend HTTP status codes
+    401: "Please sign in",
+    403: "Access denied",
+    404: "Not found",
+    500: "Server error",
+    // Also map z-fetch internal errors
+    "fetch failed": "Network connection failed",
+  },
+});
+```
+
+<Callout title="Backend Error Mapping is Optional" type="info">
+  By default (`mapBackendErrors: false`), only z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED) are mapped. Set `mapBackendErrors: true` to also map backend HTTP status codes.
 </Callout>
 
 ### Error Handling Hook

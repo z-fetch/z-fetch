@@ -196,7 +196,9 @@ const result = await api.get("/user-data");
 
 ### Error Mapping Configuration (New Feature - Issue #5)
 
-Configure custom error messages for z-fetch internal errors (network failures, timeouts, etc.):
+By default, error mapping only applies to z-fetch internal errors (network failures, timeouts, etc.). You can optionally enable it for backend HTTP errors too.
+
+#### Default: Map Z-Fetch Internal Errors Only
 
 ```js
 import { createInstance } from "@z-fetch/fetch";
@@ -207,7 +209,6 @@ const api = createInstance({
     // Map z-fetch internal error patterns
     "fetch failed": "Network connection failed - please check your internet",
     "network error": "Unable to connect to server",
-    "Network error": "Connection lost - please check your internet",
   },
 });
 
@@ -220,7 +221,32 @@ if (result.error) {
 }
 ```
 
-**Note:** Error mapping only applies to z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED). Backend HTTP errors are returned as-is with the original response.statusText, allowing your backend to control error messages.
+#### Optional: Map Backend HTTP Errors
+
+Enable `mapBackendErrors: true` to also map backend HTTP status codes:
+
+```js
+const api = createInstance({
+  baseUrl: "https://api.example.com",
+  mapBackendErrors: true, // Enable mapping for backend errors
+  errorMapping: {
+    // Map backend HTTP status codes
+    401: "Authentication failed - please sign in again",
+    403: "Access denied - insufficient permissions",
+    404: "Resource not found",
+    500: "Server error - please try again later",
+    // Also map z-fetch internal errors
+    "fetch failed": "Network connection failed",
+  },
+});
+
+const result = await api.get("/protected");
+if (result.error) {
+  console.log(result.error.message); // Custom mapped message
+}
+```
+
+**Note:** By default (`mapBackendErrors: false`), only z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED) are mapped. Backend HTTP errors use the original response.statusText, allowing your backend to control error messages.
 
 ### Error Handling Configuration (New Feature)
 

@@ -198,7 +198,9 @@ onError: (context) => {
 
 ## Error Mapping
 
-Define custom error messages for z-fetch internal errors (network failures, timeouts, etc.):
+By default, error mapping only applies to z-fetch internal errors. You can optionally enable it for backend HTTP errors.
+
+### Default: Map Z-Fetch Internal Errors Only
 
 ```js
 const api = createInstance({
@@ -214,15 +216,47 @@ const api = createInstance({
     ENETUNREACH: "Network unreachable",
   },
 });
+
+// Backend errors use original statusText from your API
+const result = await api.get("/users");
+if (result.error) {
+  console.log(result.error.message); // "Unauthorized", "Not Found", etc.
+}
 ```
 
-<Callout title="Backend Errors Not Mapped" type="warn">
-  **Important:** Error mapping only applies to z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED). Backend HTTP errors (400s, 500s) are returned as-is with the original `response.statusText` from your API, allowing your backend to control error messages.
+### Optional: Map Backend HTTP Errors
+
+Enable `mapBackendErrors: true` to also map backend HTTP status codes:
+
+```js
+const api = createInstance({
+  mapBackendErrors: true, // Enable mapping for backend errors
+  errorMapping: {
+    // Map backend HTTP status codes
+    401: "Authentication failed - please sign in again",
+    403: "Access denied - insufficient permissions",
+    404: "Resource not found",
+    500: "Server error - please try again later",
+    
+    // Also map z-fetch internal errors
+    "fetch failed": "Network connection failed",
+    "network error": "Unable to connect",
+  },
+});
+
+const result = await api.get("/users");
+if (result.error) {
+  console.log(result.error.message); // Custom mapped message
+}
+```
+
+<Callout title="Backend Error Mapping is Optional" type="info">
+  By default (`mapBackendErrors: false`), only z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED) are mapped. Backend HTTP errors use the original `response.statusText`, allowing your backend to control error messages. Set `mapBackendErrors: true` to enable mapping for backend errors too.
 </Callout>
 
 ### Pattern Matching
 
-Error mapping supports flexible pattern matching for z-fetch internal errors:
+Error mapping supports flexible pattern matching:
 
 ```js
 const api = createInstance({
@@ -238,12 +272,11 @@ const api = createInstance({
   },
 });
 
-// Backend errors are NOT mapped - they use original statusText
+// Determine error source
 const result = await api.get("/users");
 if (result.error) {
   // If error.status is a number (400-599), it's from your backend
-  // message will be the original response.statusText
-  console.log(result.error.message); // e.g., "Unauthorized", "Not Found"
+  console.log(result.error.message); // Original or mapped based on mapBackendErrors
   
   // If error.status is a string like "NETWORK_ERROR", it's from z-fetch
   // and may have been mapped via errorMapping
