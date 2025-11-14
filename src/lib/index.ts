@@ -113,6 +113,7 @@ export type Context = {
  *   baseUrl: 'https://api.example.com',
  *   bearerToken: 'your-token',
  *   headers: { 'Content-Type': 'application/json' },
+ *   throwOnError: true, // Throw errors instead of returning them
  *   hooks: {
  *     onRequest: (context) => {
  *       context.setHeaders(headers => ({ ...headers, 'X-Timestamp': Date.now().toString() }));
@@ -172,6 +173,8 @@ export type Config = {
     [statusCode: number]: string;
     [statusPattern: string]: string;
   };
+  /** Whether to throw errors instead of returning them in result.error */
+  throwOnError: boolean;
   /** Callback for upload progress tracking */
   onUploadProgress?: (event: ProgressEvent) => void;
   /** Callback for download progress tracking */
@@ -301,6 +304,7 @@ export const defaultConfig: Config = {
   },
   hooks: {},
   errorMapping: {},
+  throwOnError: false,
   useXHRForProgress: false,
 };
 
@@ -336,7 +340,7 @@ async function requestWithProgress(
   data: any;
   response: Response | null;
 }> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const mergedConfig = { ...config, ...options };
     let fullUrl = mergedConfig.baseUrl ? mergedConfig.baseUrl + url : url;
 
@@ -470,7 +474,11 @@ async function requestWithProgress(
         error = await handleError(error);
       }
 
-      resolve({ loading: false, error, data, response });
+      if (mergedConfig.throwOnError && error) {
+        reject(error);
+      } else {
+        resolve({ loading: false, error, data, response });
+      }
     });
 
     xhr.addEventListener("error", async () => {
@@ -500,12 +508,16 @@ async function requestWithProgress(
       const handledError = await handleError(error);
       error = handledError || error;
 
-      resolve({
-        loading: false,
-        error,
-        data: null,
-        response: null,
-      });
+      if (mergedConfig.throwOnError) {
+        reject(error);
+      } else {
+        resolve({
+          loading: false,
+          error,
+          data: null,
+          response: null,
+        });
+      }
     });
 
     xhr.addEventListener("timeout", async () => {
@@ -516,12 +528,16 @@ async function requestWithProgress(
       const handledError = await handleError(error);
       error = handledError || error;
 
-      resolve({
-        loading: false,
-        error,
-        data: null,
-        response: null,
-      });
+      if (mergedConfig.throwOnError) {
+        reject(error);
+      } else {
+        resolve({
+          loading: false,
+          error,
+          data: null,
+          response: null,
+        });
+      }
     });
 
     xhr.addEventListener("abort", async () => {
@@ -532,12 +548,16 @@ async function requestWithProgress(
       const handledError = await handleError(error);
       error = handledError || error;
 
-      resolve({
-        loading: false,
-        error,
-        data: null,
-        response: null,
-      });
+      if (mergedConfig.throwOnError) {
+        reject(error);
+      } else {
+        resolve({
+          loading: false,
+          error,
+          data: null,
+          response: null,
+        });
+      }
     });
 
     // Setup the request
@@ -612,7 +632,7 @@ function request(
     abortController.abort();
   };
 
-  const promise = new Promise<RequestResult>(async (resolve) => {
+  const promise = new Promise<RequestResult>(async (resolve, reject) => {
     let loading = true;
     let error: { message: string; status: string | number } | null = null;
     let data: any = null;
@@ -981,7 +1001,13 @@ function request(
         });
       }, mergedConfig.revalidateCache);
 
-      resolve(cache.get(cacheKey)!);
+      const cachedResult = cache.get(cacheKey)!;
+      // Throw error if throwOnError is enabled and cached result has an error
+      if (mergedConfig.throwOnError && cachedResult.error) {
+        reject(cachedResult.error);
+        return;
+      }
+      resolve(cachedResult);
       return;
     }
 
@@ -999,6 +1025,12 @@ function request(
         streamToArrayBuffer,
         streamChunks,
       });
+    }
+
+    // Throw error if throwOnError is enabled and there's an error
+    if (mergedConfig.throwOnError && result.error) {
+      reject(result.error);
+      return;
     }
 
     resolve({
@@ -1371,9 +1403,13 @@ export function createInstance(instanceConfig: Partial<Config> = {}) {
       return context.result!;
     };
 
-    const promise = new Promise<RequestResult>(async (resolve) => {
-      const res = await runner();
-      resolve(res);
+    const promise = new Promise<RequestResult>(async (resolve, reject) => {
+      try {
+        const res = await runner();
+        resolve(res);
+      } catch (error) {
+        reject(error);
+      }
     }) as CancelablePromise<RequestResult>;
 
     promise.cancel = () => {

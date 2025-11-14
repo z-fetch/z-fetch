@@ -97,6 +97,7 @@ type Context = {
  *   baseUrl: 'https://api.example.com',
  *   bearerToken: 'your-token',
  *   headers: { 'Content-Type': 'application/json' },
+ *   throwOnError: true, // Throw errors instead of returning them
  *   hooks: {
  *     onRequest: (context) => {
  *       context.setHeaders(headers => ({ ...headers, 'X-Timestamp': Date.now().toString() }));
@@ -158,6 +159,8 @@ type Config = {
         [statusCode: number]: string;
         [statusPattern: string]: string;
     };
+    /** Whether to throw errors instead of returning them in result.error */
+    throwOnError: boolean;
     /** Callback for upload progress tracking */
     onUploadProgress?: (event: ProgressEvent) => void;
     /** Callback for download progress tracking */
@@ -425,6 +428,7 @@ declare function createInstance(instanceConfig?: Partial<Config>): {
                 [statusCode: number]: string;
                 [statusPattern: string]: string;
             };
+            throwOnError: boolean;
             onUploadProgress?: (event: ProgressEvent) => void;
             onDownloadProgress?: (event: ProgressEvent) => void;
             useXHRForProgress?: boolean;
