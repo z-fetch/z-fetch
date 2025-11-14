@@ -279,13 +279,13 @@ describe("onError Hook Tests", () => {
   });
 
   describe("Error Mapping Integration", () => {
-    it("should apply error mapping before calling onError hook", async () => {
+    it("should NOT apply error mapping to backend errors", async () => {
       const onErrorSpy = vi.fn();
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
         errorMapping: {
-          404: "Resource not found",
+          404: "This should NOT be used for backend errors",
         },
         hooks: {
           onError: onErrorSpy,
@@ -297,25 +297,25 @@ describe("onError Hook Tests", () => {
       expect(onErrorSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           error: expect.objectContaining({
-            message: "Resource not found",
+            message: "Not Found", // Original statusText
             status: 404,
           }),
         }),
       );
 
-      expect(result.error?.message).toBe("Resource not found");
+      expect(result.error?.message).toBe("Not Found");
     });
 
-    it("should allow onError hook to override mapped error messages", async () => {
+    it("should allow onError hook to modify backend error messages", async () => {
       const api = createInstance({
         baseUrl: "https://api.example.com",
         errorMapping: {
-          404: "Resource not found",
+          404: "This should NOT be used for backend errors",
         },
         hooks: {
           onError: async (context) => {
             context.setError({
-              message: "Hook overrode mapped message",
+              message: "Hook modified backend error",
               status: context.error?.status || "UNKNOWN",
             });
           },
@@ -324,7 +324,7 @@ describe("onError Hook Tests", () => {
 
       const result = await api.get("/notfound");
 
-      expect(result.error?.message).toBe("Hook overrode mapped message");
+      expect(result.error?.message).toBe("Hook modified backend error");
       expect(result.error?.status).toBe(404);
     });
   });

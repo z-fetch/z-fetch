@@ -101,11 +101,11 @@ describe("throwOnError Configuration", () => {
         GET("https://api.example.com/test", {
           throwOnError: true,
           errorMapping: {
-            401: "Custom authentication error",
+            401: "This should NOT be used for backend errors",
           },
         }),
       ).rejects.toMatchObject({
-        message: "Custom authentication error",
+        message: "Unauthorized", // Original statusText
         status: 401,
       });
     });
@@ -210,13 +210,13 @@ describe("throwOnError Configuration", () => {
         baseUrl: "https://api.example.com",
         throwOnError: true,
         errorMapping: {
-          403: "Access forbidden",
-          404: "Not found",
+          403: "This should NOT be used for backend errors",
+          404: "This should NOT be used for backend errors",
         },
       });
 
       await expect(api.get("/test")).rejects.toMatchObject({
-        message: "Access forbidden",
+        message: "Forbidden", // Original statusText
         status: 403,
       });
     });

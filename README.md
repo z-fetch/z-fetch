@@ -196,7 +196,7 @@ const result = await api.get("/user-data");
 
 ### Error Mapping Configuration (New Feature - Issue #5)
 
-Configure custom error messages for different status codes:
+Configure custom error messages for z-fetch internal errors (network failures, timeouts, etc.):
 
 ```js
 import { createInstance } from "@z-fetch/fetch";
@@ -204,20 +204,23 @@ import { createInstance } from "@z-fetch/fetch";
 const api = createInstance({
   baseUrl: "https://api.example.com",
   errorMapping: {
-    401: "Authentication failed - please sign in again",
-    403: "Access denied - insufficient permissions",
-    404: "Resource not found",
-    500: "Server error - please try again later",
+    // Map z-fetch internal error patterns
     "fetch failed": "Network connection failed - please check your internet",
+    "network error": "Unable to connect to server",
+    "Network error": "Connection lost - please check your internet",
   },
 });
 
-// Errors will now show custom messages
+// Backend HTTP errors (400s, 500s) are returned as-is from the API
 const result = await api.get("/protected");
 if (result.error) {
-  console.log(result.error.message); // "Authentication failed - please sign in again"
+  // Backend errors show original statusText from the server
+  console.log(result.error.message); // e.g., "Unauthorized", "Not Found", etc.
+  console.log(result.error.status); // e.g., 401, 404, 500
 }
 ```
+
+**Note:** Error mapping only applies to z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED). Backend HTTP errors are returned as-is with the original response.statusText, allowing your backend to control error messages.
 
 ### Error Handling Configuration (New Feature)
 
@@ -259,8 +262,8 @@ const api = createInstance({
   baseUrl: "https://api.example.com",
   throwOnError: true,
   errorMapping: {
-    401: "Please log in again",
-    500: "Server error occurred",
+    "fetch failed": "Network connection failed",
+    "network error": "Unable to connect",
   },
 });
 
@@ -270,7 +273,8 @@ try {
   const posts = await api.get("/posts");
   console.log({ users, posts });
 } catch (error) {
-  // Error will have custom message from errorMapping
+  // Backend errors show original statusText from server
+  // Network errors show custom message from errorMapping
   console.error("API Error:", error.message, error.status);
 }
 

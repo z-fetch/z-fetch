@@ -438,39 +438,8 @@ async function requestWithProgress(
           error = await handleError(error);
         }
       } else {
-        const originalMessage = xhr.statusText;
-        let mappedMessage = originalMessage;
-
-        // Apply error mapping if configured
-        if (mergedConfig.errorMapping) {
-          // Check for exact status code match
-          if (mergedConfig.errorMapping[xhr.status]) {
-            mappedMessage = mergedConfig.errorMapping[xhr.status];
-          } else {
-            // Check for pattern matches
-            for (const [pattern, message] of Object.entries(
-              mergedConfig.errorMapping,
-            )) {
-              if (typeof pattern === "string") {
-                if (pattern === xhr.status.toString()) {
-                  mappedMessage = message;
-                  break;
-                }
-                if (
-                  originalMessage
-                    .toLowerCase()
-                    .includes(pattern.toLowerCase()) ||
-                  xhr.status.toString().includes(pattern)
-                ) {
-                  mappedMessage = message;
-                  break;
-                }
-              }
-            }
-          }
-        }
-
-        error = { message: mappedMessage, status: xhr.status };
+        // Return backend errors as-is without mapping
+        error = { message: xhr.statusText, status: xhr.status };
         error = await handleError(error);
       }
 
@@ -750,41 +719,8 @@ function request(
         clearTimeout(timeoutId);
 
         if (!response.ok) {
-          const originalMessage = response.statusText;
-          let mappedMessage = originalMessage;
-
-          // Apply error mapping if configured
-          if (mergedConfig.errorMapping) {
-            // Check for exact status code match
-            if (mergedConfig.errorMapping[response.status]) {
-              mappedMessage = mergedConfig.errorMapping[response.status];
-            } else {
-              // Check for pattern matches
-              for (const [pattern, message] of Object.entries(
-                mergedConfig.errorMapping,
-              )) {
-                if (typeof pattern === "string") {
-                  // Check if status code matches pattern
-                  if (pattern === response.status.toString()) {
-                    mappedMessage = message;
-                    break;
-                  }
-                  // Check if original message contains pattern (case insensitive)
-                  if (
-                    originalMessage
-                      .toLowerCase()
-                      .includes(pattern.toLowerCase()) ||
-                    response.status.toString().includes(pattern)
-                  ) {
-                    mappedMessage = message;
-                    break;
-                  }
-                }
-              }
-            }
-          }
-
-          error = { message: mappedMessage, status: response.status };
+          // Return backend errors as-is without mapping
+          error = { message: response.statusText, status: response.status };
           error = await handleError(error);
         } else {
           // Clone response for data extraction to preserve body for streaming utilities

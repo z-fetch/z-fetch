@@ -324,7 +324,7 @@ describe("Progress and Streaming Support Tests", () => {
         baseUrl: "https://api.example.com",
         onDownloadProgress,
         errorMapping: {
-          404: "Custom not found message",
+          404: "This should NOT be used for backend errors",
         },
       });
 
@@ -342,7 +342,8 @@ describe("Progress and Streaming Support Tests", () => {
       const result = await api.get("/notfound");
 
       expect(result.error).toBeTruthy();
-      expect(result.error?.message).toBe("Custom not found message");
+      // Should use original statusText, not custom mapping
+      expect(result.error?.message).toBe("Not Found");
       expect(result.error?.status).toBe(404);
     });
 
