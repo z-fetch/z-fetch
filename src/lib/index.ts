@@ -114,7 +114,7 @@ export type Context = {
  *   bearerToken: 'your-token',
  *   headers: { 'Content-Type': 'application/json' },
  *   throwOnError: true, // Throw errors instead of returning them
- *   mapBackendErrors: true, // Enable error mapping for backend HTTP errors
+ *   mapErrors: true, // Enable error mapping for backend HTTP errors
  *   errorMapping: {
  *     401: 'Please log in',
  *     500: 'Server error'
@@ -179,7 +179,7 @@ export type Config = {
     [statusPattern: string]: string;
   };
   /** Whether to apply error mapping to backend HTTP errors (400s, 500s). Default: false (only maps z-fetch internal errors) */
-  mapBackendErrors: boolean;
+  mapErrors: boolean;
   /** Whether to throw errors instead of returning them in result.error */
   throwOnError: boolean;
   /** Callback for upload progress tracking */
@@ -311,7 +311,7 @@ export const defaultConfig: Config = {
   },
   hooks: {},
   errorMapping: {},
-  mapBackendErrors: false,
+  mapErrors: false,
   throwOnError: false,
   useXHRForProgress: false,
 };
@@ -449,8 +449,8 @@ async function requestWithProgress(
         const originalMessage = xhr.statusText;
         let mappedMessage = originalMessage;
 
-        // Apply error mapping to backend errors if mapBackendErrors is enabled
-        if (mergedConfig.mapBackendErrors && mergedConfig.errorMapping) {
+        // Apply error mapping to backend errors if mapErrors is enabled
+        if (mergedConfig.mapErrors && mergedConfig.errorMapping) {
           // Check for exact status code match
           if (mergedConfig.errorMapping[xhr.status]) {
             mappedMessage = mergedConfig.errorMapping[xhr.status];
@@ -761,8 +761,8 @@ function request(
           const originalMessage = response.statusText;
           let mappedMessage = originalMessage;
 
-          // Apply error mapping to backend errors if mapBackendErrors is enabled
-          if (mergedConfig.mapBackendErrors && mergedConfig.errorMapping) {
+          // Apply error mapping to backend errors if mapErrors is enabled
+          if (mergedConfig.mapErrors && mergedConfig.errorMapping) {
             // Check for exact status code match
             if (mergedConfig.errorMapping[response.status]) {
               mappedMessage = mergedConfig.errorMapping[response.status];

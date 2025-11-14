@@ -20,7 +20,7 @@ var defaultConfig = {
   },
   hooks: {},
   errorMapping: {},
-  mapBackendErrors: false,
+  mapErrors: false,
   throwOnError: false,
   useXHRForProgress: false
 };
@@ -110,7 +110,7 @@ async function requestWithProgress(url, method, options = { ...defaultConfig }, 
       } else {
         const originalMessage = xhr.statusText;
         let mappedMessage = originalMessage;
-        if (mergedConfig.mapBackendErrors && mergedConfig.errorMapping) {
+        if (mergedConfig.mapErrors && mergedConfig.errorMapping) {
           if (mergedConfig.errorMapping[xhr.status]) {
             mappedMessage = mergedConfig.errorMapping[xhr.status];
           } else {
@@ -337,7 +337,7 @@ function request(url, method, options = { ...defaultConfig }) {
         if (!response.ok) {
           const originalMessage = response.statusText;
           let mappedMessage = originalMessage;
-          if (mergedConfig.mapBackendErrors && mergedConfig.errorMapping) {
+          if (mergedConfig.mapErrors && mergedConfig.errorMapping) {
             if (mergedConfig.errorMapping[response.status]) {
               mappedMessage = mergedConfig.errorMapping[response.status];
             } else {

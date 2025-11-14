@@ -12,7 +12,7 @@ describe("Error Mapping functionality (Issue #5)", () => {
     globalThis.fetch = originalFetch;
   });
 
-  describe("Default behavior (mapBackendErrors: false)", () => {
+  describe("Default behavior (mapErrors: false)", () => {
     it("should NOT map HTTP status codes by default - return backend errors as-is", async () => {
       globalThis.fetch = async () =>
         ({
@@ -25,7 +25,7 @@ describe("Error Mapping functionality (Issue #5)", () => {
 
       const result = await GET("https://api.example.com/test", {
         errorMapping: {
-          401: "This should NOT be used when mapBackendErrors is false",
+          401: "This should NOT be used when mapErrors is false",
         },
       });
 
@@ -47,7 +47,7 @@ describe("Error Mapping functionality (Issue #5)", () => {
 
       const result = await GET("https://api.example.com/test", {
         errorMapping: {
-          403: "This should NOT be used when mapBackendErrors is false",
+          403: "This should NOT be used when mapErrors is false",
         },
     });
 
@@ -125,7 +125,7 @@ describe("Error Mapping functionality (Issue #5)", () => {
     expect(result.error?.status).toBe(418);
     });
 
-    it("should map network errors (z-fetch internal errors) even when mapBackendErrors is false", async () => {
+    it("should map network errors (z-fetch internal errors) even when mapErrors is false", async () => {
       globalThis.fetch = vi.fn().mockRejectedValue(new Error("fetch failed"));
 
       const result = await GET("https://api.example.com/test", {
@@ -140,7 +140,7 @@ describe("Error Mapping functionality (Issue #5)", () => {
     });
   });
 
-  describe("With mapBackendErrors: true", () => {
+  describe("With mapErrors: true", () => {
     it("should map 401 status code when enabled", async () => {
       globalThis.fetch = async () =>
         ({
@@ -152,7 +152,7 @@ describe("Error Mapping functionality (Issue #5)", () => {
         }) as any;
 
       const result = await GET("https://api.example.com/test", {
-        mapBackendErrors: true,
+        mapErrors: true,
         errorMapping: {
           401: "Authentication failed - please sign in again",
         },
@@ -174,7 +174,7 @@ describe("Error Mapping functionality (Issue #5)", () => {
         }) as any;
 
       const result = await GET("https://api.example.com/test", {
-        mapBackendErrors: true,
+        mapErrors: true,
         errorMapping: {
           403: "Access denied - insufficient permissions",
         },
@@ -196,7 +196,7 @@ describe("Error Mapping functionality (Issue #5)", () => {
         }) as any;
 
       const result = await GET("https://api.example.com/test", {
-        mapBackendErrors: true,
+        mapErrors: true,
         errorMapping: {
           404: "Resource not found",
         },
@@ -218,7 +218,7 @@ describe("Error Mapping functionality (Issue #5)", () => {
         }) as any;
 
       const result = await GET("https://api.example.com/test", {
-        mapBackendErrors: true,
+        mapErrors: true,
         errorMapping: {
           500: "Server error - please try again later",
         },
@@ -241,7 +241,7 @@ describe("Error Mapping functionality (Issue #5)", () => {
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
-        mapBackendErrors: true,
+        mapErrors: true,
         errorMapping: {
           401: "Please log in",
           403: "Access denied",
@@ -268,7 +268,7 @@ describe("Error Mapping functionality (Issue #5)", () => {
         }) as any;
 
       const result = await GET("https://api.example.com/test", {
-        mapBackendErrors: true,
+        mapErrors: true,
         errorMapping: {
           401: "Authentication failed",
           500: "Server error",

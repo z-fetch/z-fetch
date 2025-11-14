@@ -255,7 +255,7 @@ Optionally enable mapping for backend HTTP errors:
 
 ```js
 const api = createInstance({
-  mapBackendErrors: true, // Enable mapping for backend errors
+  mapErrors: true, // Enable mapping for backend errors
   errorMapping: {
     // Map backend HTTP status codes
     401: "Please sign in",
@@ -269,7 +269,7 @@ const api = createInstance({
 ```
 
 <Callout title="Backend Error Mapping is Optional" type="info">
-  By default (`mapBackendErrors: false`), only z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED) are mapped. Set `mapBackendErrors: true` to also map backend HTTP status codes.
+  By default (`mapErrors: false`), only z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED) are mapped. Set `mapErrors: true` to also map backend HTTP status codes.
 </Callout>
 
 ### Error Handling Hook

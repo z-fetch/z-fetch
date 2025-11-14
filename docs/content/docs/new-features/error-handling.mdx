@@ -226,11 +226,11 @@ if (result.error) {
 
 ### Optional: Map Backend HTTP Errors
 
-Enable `mapBackendErrors: true` to also map backend HTTP status codes:
+Enable `mapErrors: true` to also map backend HTTP status codes:
 
 ```js
 const api = createInstance({
-  mapBackendErrors: true, // Enable mapping for backend errors
+  mapErrors: true, // Enable mapping for backend errors
   errorMapping: {
     // Map backend HTTP status codes
     401: "Authentication failed - please sign in again",
@@ -251,7 +251,7 @@ if (result.error) {
 ```
 
 <Callout title="Backend Error Mapping is Optional" type="info">
-  By default (`mapBackendErrors: false`), only z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED) are mapped. Backend HTTP errors use the original `response.statusText`, allowing your backend to control error messages. Set `mapBackendErrors: true` to enable mapping for backend errors too.
+  By default (`mapErrors: false`), only z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED) are mapped. Backend HTTP errors use the original `response.statusText`, allowing your backend to control error messages. Set `mapErrors: true` to enable mapping for backend errors too.
 </Callout>
 
 ### Pattern Matching
@@ -276,7 +276,7 @@ const api = createInstance({
 const result = await api.get("/users");
 if (result.error) {
   // If error.status is a number (400-599), it's from your backend
-  console.log(result.error.message); // Original or mapped based on mapBackendErrors
+  console.log(result.error.message); // Original or mapped based on mapErrors
   
   // If error.status is a string like "NETWORK_ERROR", it's from z-fetch
   // and may have been mapped via errorMapping
