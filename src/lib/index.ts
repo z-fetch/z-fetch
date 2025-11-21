@@ -680,24 +680,43 @@ function request(
       return errObj;
     };
 
-    const performRequest = async (): Promise<{
+    const performRequest = async (
+      disableThrow: boolean = false,
+    ): Promise<{
       loading: boolean;
       error: typeof error;
       data: any;
       response: Response | null;
     }> => {
+      // Temporarily override throwOnError if needed for retries
+      const originalThrowOnError = mergedConfig.throwOnError;
+      if (disableThrow) {
+        mergedConfig.throwOnError = false;
+      }
+
       // Use XMLHttpRequest if progress tracking is needed
       if (shouldUseXHR) {
-        return await requestWithProgress(
+        // During retries, we need to disable throwOnError to allow retry logic to work
+        const xhrOptions = disableThrow
+          ? { ...options, throwOnError: false }
+          : options;
+        const xhrResult = await requestWithProgress(
           url,
           method,
-          options,
+          xhrOptions,
           {
-            config: mergedConfig,
+            config: disableThrow
+              ? { ...mergedConfig, throwOnError: false }
+              : mergedConfig,
             onError: mergedConfig.hooks?.onError,
           },
           signal,
         );
+        // Restore original throwOnError value
+        if (disableThrow) {
+          mergedConfig.throwOnError = originalThrowOnError;
+        }
+        return xhrResult;
       }
 
       try {
@@ -795,6 +814,8 @@ function request(
           error = { message: mappedMessage, status: response.status };
           error = await handleError(error);
         } else {
+          // Clear error on success
+          error = null;
           // Clone response for data extraction to preserve body for streaming utilities
           const responseForData = response.clone();
           data = mergedConfig.parseJson
@@ -803,6 +824,10 @@ function request(
         }
 
         loading = false;
+        // Restore original throwOnError value
+        if (disableThrow) {
+          mergedConfig.throwOnError = originalThrowOnError;
+        }
         return { loading, error, data, response };
       } catch (err: any) {
         let status: string | number = "NETWORK_ERROR";
@@ -846,6 +871,10 @@ function request(
         };
         errObj = (await handleError(errObj)) || errObj;
         loading = false;
+        // Restore original throwOnError value
+        if (disableThrow) {
+          mergedConfig.throwOnError = originalThrowOnError;
+        }
         return { loading, error: errObj, data, response: null };
       }
     };
@@ -910,7 +939,10 @@ function request(
     };
 
     // Placeholder for result to support streaming utils referencing latest response
-    let result = await performRequest();
+    // If retry is enabled, disable throwing during individual attempts
+    const shouldDisableThrowForRetry =
+      mergedConfig.retry && mergedConfig.throwOnError;
+    let result = await performRequest(shouldDisableThrowForRetry);
 
     while (
       mergedConfig.retry &&
@@ -918,7 +950,7 @@ function request(
       result.error
     ) {
       retryCount++;
-      result = await performRequest();
+      result = await performRequest(shouldDisableThrowForRetry);
     }
 
     // Streaming utility functions

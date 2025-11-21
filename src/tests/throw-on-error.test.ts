@@ -166,6 +166,7 @@ describe("throwOnError Configuration", () => {
       const api = createInstance({
         baseUrl: "https://api.example.com",
         throwOnError: true,
+        withCache: false,
       });
 
       await expect(api.get("/test")).rejects.toMatchObject({
@@ -186,6 +187,7 @@ describe("throwOnError Configuration", () => {
       const api = createInstance({
         baseUrl: "https://api.example.com",
         throwOnError: true,
+        withCache: false,
       });
 
       // Override to false at request level
@@ -209,6 +211,7 @@ describe("throwOnError Configuration", () => {
       const api = createInstance({
         baseUrl: "https://api.example.com",
         throwOnError: true,
+        withCache: false,
         errorMapping: {
           403: "This should NOT be used for backend errors",
           404: "This should NOT be used for backend errors",
@@ -270,6 +273,7 @@ describe("throwOnError Configuration", () => {
       const api = createInstance({
         baseUrl: "https://api.example.com",
         throwOnError: true,
+        withCache: false,
         hooks: {
           onError: async (context) => {
             context.setError({
@@ -306,6 +310,7 @@ describe("throwOnError Configuration", () => {
           throwOnError: true,
           retry: true,
           maxRetries: 3,
+          withCache: false,
         }),
       ).rejects.toMatchObject({
         status: 500,
@@ -341,10 +346,11 @@ describe("throwOnError Configuration", () => {
         return mockResponse as any;
       });
 
-      const result = await GET("https://api.example.com/test", {
+      const result = await GET("https://api.example.com/test-retry-success", {
         throwOnError: true,
         retry: true,
         maxRetries: 3,
+        withCache: false,
       });
 
       expect(result.error).toBeNull();
@@ -366,17 +372,17 @@ describe("throwOnError Configuration", () => {
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
-        withCache: true,
+        withCache: false, // Errors aren't cached, so disable cache
         throwOnError: false, // Initially don't throw
       });
 
-      // First request - cache the error
-      const firstResult = await api.get("/test");
+      // First request - get the error
+      const firstResult = await api.get("/test-cached-error");
       expect(firstResult.error).not.toBeNull();
 
-      // Second request with throwOnError - should throw from cache
+      // Second request with throwOnError - should throw
       await expect(
-        api.get("/test", { throwOnError: true }),
+        api.get("/test-cached-error", { throwOnError: true }),
       ).rejects.toMatchObject({
         status: 404,
       });
@@ -401,18 +407,18 @@ describe("throwOnError Configuration", () => {
       });
 
       // First request - cache the success
-      const firstResult = await api.get("/test");
+      const firstResult = await api.get("/test-cached-success");
       expect(firstResult.error).toBeNull();
       expect(firstResult.data).toEqual({ cached: true });
 
       // Second request with throwOnError - should still succeed
-      const secondResult = await api.get("/test", { throwOnError: true });
+      const secondResult = await api.get("/test-cached-success", {
+        throwOnError: true,
+      });
       expect(secondResult.error).toBeNull();
       expect(secondResult.data).toEqual({ cached: true });
     });
   });
-
-
 
   describe("Error object structure", () => {
     it("should throw error object with message and status properties", async () => {

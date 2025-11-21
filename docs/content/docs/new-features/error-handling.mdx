@@ -153,6 +153,34 @@ if (result.error) {
   mapping, hooks, retries, and caching.
 </Callout>
 
+### throwOnError with Retries
+
+`throwOnError` works seamlessly with retry logic. Errors won't be thrown during retry attempts - only after all retries are exhausted:
+
+```js
+const api = createInstance({
+  throwOnError: true,
+  retry: true,
+  maxRetries: 3, // Will try: 1 original + 3 retries = 4 total attempts
+});
+
+try {
+  // If first request fails but retry succeeds, no error is thrown
+  const result = await api.get("/unstable-endpoint");
+  console.log("Success:", result.data);
+} catch (error) {
+  // Only thrown if ALL retry attempts fail
+  console.error("Failed after retries:", error.message);
+}
+```
+
+**How it works:**
+
+- During retry attempts, errors are not thrown
+- If a retry succeeds, `result.error` is cleared and success data is returned
+- Errors are only thrown after all retry attempts are exhausted
+- This ensures retry logic can work properly without interruption
+
 ## Error Modification
 
 ### Using setError Helper
@@ -237,7 +265,7 @@ const api = createInstance({
     403: "Access denied - insufficient permissions",
     404: "Resource not found",
     500: "Server error - please try again later",
-    
+
     // Also map z-fetch internal errors
     "fetch failed": "Network connection failed",
     "network error": "Unable to connect",
@@ -251,7 +279,10 @@ if (result.error) {
 ```
 
 <Callout title="Backend Error Mapping is Optional" type="info">
-  By default (`mapErrors: false`), only z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED) are mapped. Backend HTTP errors use the original `response.statusText`, allowing your backend to control error messages. Set `mapErrors: true` to enable mapping for backend errors too.
+  By default (`mapErrors: false`), only z-fetch internal errors (NETWORK_ERROR,
+  TIMEOUT, CANCELED) are mapped. Backend HTTP errors use the original
+  `response.statusText`, allowing your backend to control error messages. Set
+  `mapErrors: true` to enable mapping for backend errors too.
 </Callout>
 
 ### Pattern Matching
@@ -277,7 +308,7 @@ const result = await api.get("/users");
 if (result.error) {
   // If error.status is a number (400-599), it's from your backend
   console.log(result.error.message); // Original or mapped based on mapErrors
-  
+
   // If error.status is a string like "NETWORK_ERROR", it's from z-fetch
   // and may have been mapped via errorMapping
 }
