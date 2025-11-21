@@ -22,12 +22,14 @@ var defaultConfig = {
   },
   hooks: {},
   errorMapping: {},
+  mapErrors: false,
+  throwOnError: false,
   useXHRForProgress: false
 };
 var config = { ...defaultConfig };
 var cache = /* @__PURE__ */ new Map();
 async function requestWithProgress(url, method, options = { ...defaultConfig }, context, signal) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const mergedConfig = { ...config, ...options };
     let fullUrl = mergedConfig.baseUrl ? mergedConfig.baseUrl + url : url;
     const xhr = new XMLHttpRequest();
@@ -110,7 +112,7 @@ async function requestWithProgress(url, method, options = { ...defaultConfig }, 
       } else {
         const originalMessage = xhr.statusText;
         let mappedMessage = originalMessage;
-        if (mergedConfig.errorMapping) {
+        if (mergedConfig.mapErrors && mergedConfig.errorMapping) {
           if (mergedConfig.errorMapping[xhr.status]) {
             mappedMessage = mergedConfig.errorMapping[xhr.status];
           } else {
@@ -133,7 +135,11 @@ async function requestWithProgress(url, method, options = { ...defaultConfig }, 
         error = { message: mappedMessage, status: xhr.status };
         error = await handleError(error);
       }
-      resolve({ loading: false, error, data, response });
+      if (mergedConfig.throwOnError && error) {
+        reject(error);
+      } else {
+        resolve({ loading: false, error, data, response });
+      }
     });
     xhr.addEventListener("error", async () => {
       let mappedMessage = "Network error";
@@ -155,12 +161,16 @@ async function requestWithProgress(url, method, options = { ...defaultConfig }, 
       };
       const handledError = await handleError(error);
       error = handledError || error;
-      resolve({
-        loading: false,
-        error,
-        data: null,
-        response: null
-      });
+      if (mergedConfig.throwOnError) {
+        reject(error);
+      } else {
+        resolve({
+          loading: false,
+          error,
+          data: null,
+          response: null
+        });
+      }
     });
     xhr.addEventListener("timeout", async () => {
       let error = {
@@ -169,12 +179,16 @@ async function requestWithProgress(url, method, options = { ...defaultConfig }, 
       };
       const handledError = await handleError(error);
       error = handledError || error;
-      resolve({
-        loading: false,
-        error,
-        data: null,
-        response: null
-      });
+      if (mergedConfig.throwOnError) {
+        reject(error);
+      } else {
+        resolve({
+          loading: false,
+          error,
+          data: null,
+          response: null
+        });
+      }
     });
     xhr.addEventListener("abort", async () => {
       let error = {
@@ -183,12 +197,16 @@ async function requestWithProgress(url, method, options = { ...defaultConfig }, 
       };
       const handledError = await handleError(error);
       error = handledError || error;
-      resolve({
-        loading: false,
-        error,
-        data: null,
-        response: null
-      });
+      if (mergedConfig.throwOnError) {
+        reject(error);
+      } else {
+        resolve({
+          loading: false,
+          error,
+          data: null,
+          response: null
+        });
+      }
     });
     xhr.open(method, fullUrl);
     xhr.timeout = mergedConfig.timeout;
@@ -224,7 +242,7 @@ function request(url, method, options = { ...defaultConfig }) {
   const cancelRequest = () => {
     abortController.abort();
   };
-  const promise = new Promise(async (resolve) => {
+  const promise = new Promise(async (resolve, reject) => {
     let loading = true;
     let error = null;
     let data = null;
@@ -321,7 +339,7 @@ function request(url, method, options = { ...defaultConfig }) {
         if (!response.ok) {
           const originalMessage = response.statusText;
           let mappedMessage = originalMessage;
-          if (mergedConfig.errorMapping) {
+          if (mergedConfig.mapErrors && mergedConfig.errorMapping) {
             if (mergedConfig.errorMapping[response.status]) {
               mappedMessage = mergedConfig.errorMapping[response.status];
             } else {
@@ -507,7 +525,12 @@ function request(url, method, options = { ...defaultConfig }) {
           }
         });
       }, mergedConfig.revalidateCache);
-      resolve(cache.get(cacheKey));
+      const cachedResult = cache.get(cacheKey);
+      if (mergedConfig.throwOnError && cachedResult.error) {
+        reject(cachedResult.error);
+        return;
+      }
+      resolve(cachedResult);
       return;
     }
     if (mergedConfig.withCache && method === "GET" && !result.error) {
@@ -523,6 +546,10 @@ function request(url, method, options = { ...defaultConfig }) {
         streamToArrayBuffer,
         streamChunks
       });
+    }
+    if (mergedConfig.throwOnError && result.error) {
+      reject(result.error);
+      return;
     }
     resolve({
       ...result,
@@ -690,9 +717,13 @@ function createInstance(instanceConfig = {}) {
       }
       return context.result;
     };
-    const promise = new Promise(async (resolve) => {
-      const res = await runner();
-      resolve(res);
+    const promise = new Promise(async (resolve, reject) => {
+      try {
+        const res = await runner();
+        resolve(res);
+      } catch (error) {
+        reject(error);
+      }
     });
     promise.cancel = () => {
       basePromise?.cancel();

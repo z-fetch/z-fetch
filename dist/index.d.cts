@@ -97,6 +97,12 @@ type Context = {
  *   baseUrl: 'https://api.example.com',
  *   bearerToken: 'your-token',
  *   headers: { 'Content-Type': 'application/json' },
+ *   throwOnError: true, // Throw errors instead of returning them
+ *   mapErrors: true, // Enable error mapping for backend HTTP errors
+ *   errorMapping: {
+ *     401: 'Please log in',
+ *     500: 'Server error'
+ *   },
  *   hooks: {
  *     onRequest: (context) => {
  *       context.setHeaders(headers => ({ ...headers, 'X-Timestamp': Date.now().toString() }));
@@ -158,6 +164,10 @@ type Config = {
         [statusCode: number]: string;
         [statusPattern: string]: string;
     };
+    /** Whether to apply error mapping to backend HTTP errors (400s, 500s). Default: false (only maps z-fetch internal errors) */
+    mapErrors: boolean;
+    /** Whether to throw errors instead of returning them in result.error */
+    throwOnError: boolean;
     /** Callback for upload progress tracking */
     onUploadProgress?: (event: ProgressEvent) => void;
     /** Callback for download progress tracking */
@@ -425,6 +435,8 @@ declare function createInstance(instanceConfig?: Partial<Config>): {
                 [statusCode: number]: string;
                 [statusPattern: string]: string;
             };
+            mapErrors: boolean;
+            throwOnError: boolean;
             onUploadProgress?: (event: ProgressEvent) => void;
             onDownloadProgress?: (event: ProgressEvent) => void;
             useXHRForProgress?: boolean;

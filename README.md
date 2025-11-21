@@ -196,7 +196,9 @@ const result = await api.get("/user-data");
 
 ### Error Mapping Configuration (New Feature - Issue #5)
 
-Configure custom error messages for different status codes:
+By default, error mapping only applies to z-fetch internal errors (network failures, timeouts, etc.). You can optionally enable it for backend HTTP errors too.
+
+#### Default: Map Z-Fetch Internal Errors Only
 
 ```js
 import { createInstance } from "@z-fetch/fetch";
@@ -204,20 +206,117 @@ import { createInstance } from "@z-fetch/fetch";
 const api = createInstance({
   baseUrl: "https://api.example.com",
   errorMapping: {
+    // Map z-fetch internal error patterns
+    "fetch failed": "Network connection failed - please check your internet",
+    "network error": "Unable to connect to server",
+  },
+});
+
+// Backend HTTP errors (400s, 500s) are returned as-is from the API
+const result = await api.get("/protected");
+if (result.error) {
+  // Backend errors show original statusText from the server
+  console.log(result.error.message); // e.g., "Unauthorized", "Not Found", etc.
+  console.log(result.error.status); // e.g., 401, 404, 500
+}
+```
+
+#### Optional: Map Backend HTTP Errors
+
+Enable `mapErrors: true` to also map backend HTTP status codes:
+
+```js
+const api = createInstance({
+  baseUrl: "https://api.example.com",
+  mapErrors: true, // Enable mapping for backend errors
+  errorMapping: {
+    // Map backend HTTP status codes
     401: "Authentication failed - please sign in again",
     403: "Access denied - insufficient permissions",
     404: "Resource not found",
     500: "Server error - please try again later",
-    "fetch failed": "Network connection failed - please check your internet",
+    // Also map z-fetch internal errors
+    "fetch failed": "Network connection failed",
   },
 });
 
-// Errors will now show custom messages
 const result = await api.get("/protected");
 if (result.error) {
-  console.log(result.error.message); // "Authentication failed - please sign in again"
+  console.log(result.error.message); // Custom mapped message
 }
 ```
+
+**Note:** By default (`mapErrors: false`), only z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED) are mapped. Backend HTTP errors use the original response.statusText, allowing your backend to control error messages.
+
+### Error Handling Configuration (New Feature)
+
+Choose between returning errors in `result.error` (default) or throwing errors like traditional fetch/axios:
+
+#### Default Behavior - Errors Returned in Result
+
+```js
+import { GET } from "@z-fetch/fetch";
+
+// By default, errors are returned in result.error
+const result = await GET("https://api.example.com/users");
+if (result.error) {
+  console.error("Request failed:", result.error.message);
+  console.error("Status:", result.error.status);
+} else {
+  console.log("Data:", result.data);
+}
+```
+
+#### throwOnError: true - Errors Are Thrown
+
+```js
+import { GET, createInstance } from "@z-fetch/fetch";
+
+// Enable throwOnError for traditional try-catch error handling
+try {
+  const result = await GET("https://api.example.com/users", {
+    throwOnError: true,
+  });
+  console.log("Data:", result.data);
+} catch (error) {
+  console.error("Request failed:", error.message);
+  console.error("Status:", error.status);
+}
+
+// Or configure it at the instance level
+const api = createInstance({
+  baseUrl: "https://api.example.com",
+  throwOnError: true,
+  errorMapping: {
+    "fetch failed": "Network connection failed",
+    "network error": "Unable to connect",
+  },
+});
+
+// All requests will now throw on error
+try {
+  const users = await api.get("/users");
+  const posts = await api.get("/posts");
+  console.log({ users, posts });
+} catch (error) {
+  // Backend errors show original statusText from server
+  // Network errors show custom message from errorMapping
+  console.error("API Error:", error.message, error.status);
+}
+
+// You can still override per request
+const result = await api.get("/users", { throwOnError: false });
+if (result.error) {
+  // Back to the default behavior for this request
+  console.error("Error:", result.error);
+}
+```
+
+**Benefits:**
+- **Default (throwOnError: false)**: Safer for beginners, no unexpected crashes, explicit error checking
+- **throwOnError: true**: Familiar for developers coming from fetch/axios, cleaner async/await code with try-catch
+- **Flexible**: Configure globally or per-request based on your needs
+- **Works with all features**: Retries, error mapping, hooks, and caching all work with both modes
 
 ## 🌟 Contributing
 

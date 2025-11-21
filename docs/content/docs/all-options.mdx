@@ -198,31 +198,87 @@ const api = createInstance({
 
 ## Error Configuration
 
-### Error Mapping
+### Error Handling Mode
 
-Map error codes and messages to user-friendly text:
+Choose how errors are handled - returned in result or thrown:
 
 ```js
 const api = createInstance({
+  throwOnError: false, // Default: errors returned in result.error
+});
+
+// Or use throwing mode for traditional try-catch
+const apiWithThrow = createInstance({
+  throwOnError: true, // Errors are thrown as exceptions
+});
+
+// Default mode usage
+const result = await api.get("/users");
+if (result.error) {
+  console.error("Error:", result.error);
+}
+
+// Throwing mode usage
+try {
+  const result = await apiWithThrow.get("/users");
+  console.log("Data:", result.data);
+} catch (error) {
+  console.error("Error:", error.message, error.status);
+}
+```
+
+<Callout title="Choose Your Style" type="info">
+  **throwOnError: false** (default) is safer and more explicit. **throwOnError:
+  true** is familiar for developers from fetch/axios. Both work with all
+  features.
+</Callout>
+
+### Error Mapping
+
+Map errors to user-friendly text. By default, only z-fetch internal errors are mapped:
+
+```js
+const api = createInstance({
+  throwOnError: true, // Works with error mapping
   errorMapping: {
-    401: "Please sign in to continue",
-    403: "You do not have permission for this action",
-    404: "The requested resource was not found",
-    429: "Too many requests. Please slow down.",
-    500: "Internal server error. Please try again.",
+    // Map z-fetch internal errors (default behavior)
     "fetch failed": "Network connection failed",
-    timeout: "Request timed out",
+    "network error": "Unable to connect to server",
+    NetworkError: "Connection lost",
+  },
+});
+
+// Backend HTTP errors use original response.statusText from your API
+```
+
+Optionally enable mapping for backend HTTP errors:
+
+```js
+const api = createInstance({
+  mapErrors: true, // Enable mapping for backend errors
+  errorMapping: {
+    // Map backend HTTP status codes
+    401: "Please sign in",
+    403: "Access denied",
+    404: "Not found",
+    500: "Server error",
+    // Also map z-fetch internal errors
+    "fetch failed": "Network connection failed",
   },
 });
 ```
 
-### Error Handling
+<Callout title="Backend Error Mapping is Optional" type="info">
+  By default (`mapErrors: false`), only z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED) are mapped. Set `mapErrors: true` to also map backend HTTP status codes.
+</Callout>
+
+### Error Handling Hook
 
 ```js
 const api = createInstance({
   hooks: {
     onError: (context) => {
-      // Global error handling
+      // Global error handling (runs before throwing if throwOnError: true)
       console.error("API Error:", context.error);
       trackError(context.error);
     },

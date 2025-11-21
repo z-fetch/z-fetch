@@ -1,80 +1,63 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { GET, createInstance } from "../lib/index";
-import { setupMockFetch } from "./mock-helpers";
 
 describe("Error Mapping functionality (Issue #5)", () => {
-  let mockSetup: ReturnType<typeof setupMockFetch>;
+  let originalFetch: typeof globalThis.fetch;
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
 
   afterEach(() => {
-    mockSetup?.restore();
+    globalThis.fetch = originalFetch;
   });
 
-  it("should map 401 status code to custom message", async () => {
-    mockSetup = setupMockFetch();
+  describe("Default behavior (mapErrors: false)", () => {
+    it("should NOT map HTTP status codes by default - return backend errors as-is", async () => {
+      globalThis.fetch = async () =>
+        ({
+          ok: false,
+          status: 401,
+          statusText: "Unauthorized",
+          json: async () => ({}),
+          text: async () => "",
+        }) as any;
 
-    // Mock a 401 response
-    mockSetup.restore();
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () =>
-      ({
-        ok: false,
-        status: 401,
-        statusText: "Unauthorized",
-        json: async () => ({}),
-        text: async () => "",
-      }) as any;
-
-    const restoreFetch = () => {
-      globalThis.fetch = originalFetch;
-    };
-
-    try {
       const result = await GET("https://api.example.com/test", {
         errorMapping: {
-          401: "Authentication failed - please sign in again",
+          401: "This should NOT be used when mapErrors is false",
         },
       });
 
       expect(result.error).not.toBeNull();
-      expect(result.error?.message).toBe(
-        "Authentication failed - please sign in again",
-      );
+      // Should use original statusText, NOT the mapped message
+      expect(result.error?.message).toBe("Unauthorized");
       expect(result.error?.status).toBe(401);
-    } finally {
-      restoreFetch();
-    }
-  });
+    });
 
-  it("should map 403 status code to custom message", async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () =>
-      ({
-        ok: false,
-        status: 403,
-        statusText: "Forbidden",
-        json: async () => ({}),
-        text: async () => "",
-      }) as any;
+    it("should NOT map 403 status code by default - return backend error as-is", async () => {
+      globalThis.fetch = async () =>
+        ({
+          ok: false,
+          status: 403,
+          statusText: "Forbidden",
+          json: async () => ({}),
+          text: async () => "",
+        }) as any;
 
-    try {
       const result = await GET("https://api.example.com/test", {
         errorMapping: {
-          403: "Access denied - insufficient permissions",
+          403: "This should NOT be used when mapErrors is false",
         },
-      });
+    });
 
-      expect(result.error).not.toBeNull();
-      expect(result.error?.message).toBe(
-        "Access denied - insufficient permissions",
-      );
-      expect(result.error?.status).toBe(403);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+    expect(result.error).not.toBeNull();
+    // Should use original statusText, NOT the mapped message
+    expect(result.error?.message).toBe("Forbidden");
+    expect(result.error?.status).toBe(403);
   });
 
-  it("should map 404 status code to custom message with service name", async () => {
-    const originalFetch = globalThis.fetch;
+  it("should NOT map 404 status code - return backend error as-is", async () => {
     globalThis.fetch = async () =>
       ({
         ok: false,
@@ -84,23 +67,19 @@ describe("Error Mapping functionality (Issue #5)", () => {
         text: async () => "",
       }) as any;
 
-    try {
-      const result = await GET("https://api.example.com/users", {
-        errorMapping: {
-          404: "Service 'Users API' not found",
-        },
-      });
+    const result = await GET("https://api.example.com/users", {
+      errorMapping: {
+        404: "This should NOT be used",
+      },
+    });
 
-      expect(result.error).not.toBeNull();
-      expect(result.error?.message).toBe("Service 'Users API' not found");
-      expect(result.error?.status).toBe(404);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+    expect(result.error).not.toBeNull();
+    // Should use original statusText, NOT the mapped message
+    expect(result.error?.message).toBe("Not Found");
+    expect(result.error?.status).toBe(404);
   });
 
-  it("should map 500 status code to custom message", async () => {
-    const originalFetch = globalThis.fetch;
+  it("should NOT map 500 status code - return backend error as-is", async () => {
     globalThis.fetch = async () =>
       ({
         ok: false,
@@ -110,59 +89,19 @@ describe("Error Mapping functionality (Issue #5)", () => {
         text: async () => "",
       }) as any;
 
-    try {
-      const result = await GET("https://api.example.com/test", {
-        errorMapping: {
-          500: "Server error - please try again later",
-        },
-      });
+    const result = await GET("https://api.example.com/test", {
+      errorMapping: {
+        500: "This should NOT be used",
+      },
+    });
 
-      expect(result.error).not.toBeNull();
-      expect(result.error?.message).toBe(
-        "Server error - please try again later",
-      );
-      expect(result.error?.status).toBe(500);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+    expect(result.error).not.toBeNull();
+    // Should use original statusText, NOT the mapped message
+    expect(result.error?.message).toBe("Internal Server Error");
+    expect(result.error?.status).toBe(500);
   });
 
-  it("should work with createInstance configuration", async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () =>
-      ({
-        ok: false,
-        status: 401,
-        statusText: "Unauthorized",
-        json: async () => ({}),
-        text: async () => "",
-      }) as any;
-
-    try {
-      const api = createInstance({
-        baseUrl: "https://api.example.com",
-        errorMapping: {
-          401: "Authentication failed - please sign in again",
-          403: "Access denied - insufficient permissions",
-          404: "Resource not found",
-          500: "Server error - please try again later",
-        },
-      });
-
-      const result = await api.get("/test");
-
-      expect(result.error).not.toBeNull();
-      expect(result.error?.message).toBe(
-        "Authentication failed - please sign in again",
-      );
-      expect(result.error?.status).toBe(401);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-  });
-
-  it("should fallback to original message when no mapping found", async () => {
-    const originalFetch = globalThis.fetch;
+  it("should always return original backend error message", async () => {
     globalThis.fetch = async () =>
       ({
         ok: false,
@@ -172,8 +111,164 @@ describe("Error Mapping functionality (Issue #5)", () => {
         text: async () => "",
       }) as any;
 
-    try {
+    const result = await GET("https://api.example.com/test", {
+      errorMapping: {
+        418: "This should NOT be used",
+        401: "Authentication failed",
+        500: "Server error",
+      },
+    });
+
+    expect(result.error).not.toBeNull();
+    // Always use original statusText for backend errors by default
+    expect(result.error?.message).toBe("I'm a teapot");
+    expect(result.error?.status).toBe(418);
+    });
+
+    it("should map network errors (z-fetch internal errors) even when mapErrors is false", async () => {
+      globalThis.fetch = vi.fn().mockRejectedValue(new Error("fetch failed"));
+
       const result = await GET("https://api.example.com/test", {
+        errorMapping: {
+          "fetch failed": "Network connection failed",
+        },
+      });
+
+      expect(result.error).not.toBeNull();
+      expect(result.error?.message).toBe("Network connection failed");
+      expect(result.error?.status).toBe("NETWORK_ERROR");
+    });
+  });
+
+  describe("With mapErrors: true", () => {
+    it("should map 401 status code when enabled", async () => {
+      globalThis.fetch = async () =>
+        ({
+          ok: false,
+          status: 401,
+          statusText: "Unauthorized",
+          json: async () => ({}),
+          text: async () => "",
+        }) as any;
+
+      const result = await GET("https://api.example.com/test", {
+        mapErrors: true,
+        errorMapping: {
+          401: "Authentication failed - please sign in again",
+        },
+      });
+
+      expect(result.error).not.toBeNull();
+      expect(result.error?.message).toBe("Authentication failed - please sign in again");
+      expect(result.error?.status).toBe(401);
+    });
+
+    it("should map 403 status code when enabled", async () => {
+      globalThis.fetch = async () =>
+        ({
+          ok: false,
+          status: 403,
+          statusText: "Forbidden",
+          json: async () => ({}),
+          text: async () => "",
+        }) as any;
+
+      const result = await GET("https://api.example.com/test", {
+        mapErrors: true,
+        errorMapping: {
+          403: "Access denied - insufficient permissions",
+        },
+      });
+
+      expect(result.error).not.toBeNull();
+      expect(result.error?.message).toBe("Access denied - insufficient permissions");
+      expect(result.error?.status).toBe(403);
+    });
+
+    it("should map 404 status code when enabled", async () => {
+      globalThis.fetch = async () =>
+        ({
+          ok: false,
+          status: 404,
+          statusText: "Not Found",
+          json: async () => ({}),
+          text: async () => "",
+        }) as any;
+
+      const result = await GET("https://api.example.com/test", {
+        mapErrors: true,
+        errorMapping: {
+          404: "Resource not found",
+        },
+      });
+
+      expect(result.error).not.toBeNull();
+      expect(result.error?.message).toBe("Resource not found");
+      expect(result.error?.status).toBe(404);
+    });
+
+    it("should map 500 status code when enabled", async () => {
+      globalThis.fetch = async () =>
+        ({
+          ok: false,
+          status: 500,
+          statusText: "Internal Server Error",
+          json: async () => ({}),
+          text: async () => "",
+        }) as any;
+
+      const result = await GET("https://api.example.com/test", {
+        mapErrors: true,
+        errorMapping: {
+          500: "Server error - please try again later",
+        },
+      });
+
+      expect(result.error).not.toBeNull();
+      expect(result.error?.message).toBe("Server error - please try again later");
+      expect(result.error?.status).toBe(500);
+    });
+
+    it("should work with createInstance", async () => {
+      globalThis.fetch = async () =>
+        ({
+          ok: false,
+          status: 401,
+          statusText: "Unauthorized",
+          json: async () => ({}),
+          text: async () => "",
+        }) as any;
+
+      const api = createInstance({
+        baseUrl: "https://api.example.com",
+        mapErrors: true,
+        errorMapping: {
+          401: "Please log in",
+          403: "Access denied",
+          404: "Not found",
+          500: "Server error",
+        },
+      });
+
+      const result = await api.get("/test");
+
+      expect(result.error).not.toBeNull();
+      expect(result.error?.message).toBe("Please log in");
+      expect(result.error?.status).toBe(401);
+    });
+
+    it("should fallback to original message when no mapping found", async () => {
+      globalThis.fetch = async () =>
+        ({
+          ok: false,
+          status: 418,
+          statusText: "I'm a teapot",
+          json: async () => ({}),
+          text: async () => "",
+        }) as any;
+
+      const result = await GET("https://api.example.com/test", {
+        mapErrors: true,
         errorMapping: {
           401: "Authentication failed",
           500: "Server error",
@@ -181,70 +276,58 @@ describe("Error Mapping functionality (Issue #5)", () => {
       });
 
       expect(result.error).not.toBeNull();
-      expect(result.error?.message).toBe("I'm a teapot"); // Original message
+      // Falls back to original statusText when no mapping found
+      expect(result.error?.message).toBe("I'm a teapot");
       expect(result.error?.status).toBe(418);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+    });
   });
 
-  it("should map network errors", async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () => {
-      throw new Error("fetch failed");
-    };
+  it("should map network errors (z-fetch internal errors)", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("fetch failed"));
 
-    try {
-      const result = await GET("https://api.example.com/test", {
-        errorMapping: {
-          "fetch failed":
-            "Network connection failed - please check your internet",
-        },
-      });
+    const result = await GET("https://api.example.com/test", {
+      errorMapping: {
+        "fetch failed":
+          "Network connection failed - please check your internet",
+      },
+    });
 
-      expect(result.error).not.toBeNull();
-      expect(result.error?.message).toBe(
-        "Network connection failed - please check your internet",
-      );
-      expect(result.error?.status).toBe("NETWORK_ERROR");
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+    expect(result.error).not.toBeNull();
+    expect(result.error?.message).toBe(
+      "Network connection failed - please check your internet",
+    );
+    expect(result.error?.status).toBe("NETWORK_ERROR");
   });
 
-  it("should support multiple error mapping patterns", async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async () =>
-      ({
-        ok: false,
-        status: 401,
-        statusText: "Unauthorized",
-        json: async () => ({}),
-        text: async () => "",
-      }) as any;
+  it("should map network error patterns", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
 
-    try {
-      const api = createInstance({
-        baseUrl: "https://api.example.com",
-        errorMapping: {
-          // Exact status codes
-          401: "Please login",
-          403: "Access denied",
-          404: "Not found",
-          500: "Server error",
-          // String patterns
-          unauthorized: "Authentication required",
-          forbidden: "Permission denied",
-        },
-      });
+    const result = await GET("https://api.example.com/test", {
+      errorMapping: {
+        "network error": "Unable to connect to server",
+      },
+    });
 
-      const result = await api.get("/test");
+    expect(result.error).not.toBeNull();
+    expect(result.error?.message).toBe("Unable to connect to server");
+    expect(result.error?.status).toBe("NETWORK_ERROR");
+  });
 
-      expect(result.error).not.toBeNull();
-      // Should match the exact status code (401) first
-      expect(result.error?.message).toBe("Please login");
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+  it("should work with createInstance for network errors", async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error("fetch failed"));
+
+    const api = createInstance({
+      baseUrl: "https://api.example.com",
+      errorMapping: {
+        "fetch failed": "Network connection lost",
+        "network error": "Unable to connect",
+      },
+    });
+
+    const result = await api.get("/test");
+
+    expect(result.error).not.toBeNull();
+    expect(result.error?.message).toBe("Network connection lost");
+    expect(result.error?.status).toBe("NETWORK_ERROR");
   });
 });

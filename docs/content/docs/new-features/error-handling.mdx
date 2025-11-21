@@ -96,6 +96,91 @@ The onError hook receives a comprehensive context object:
 }
 ```
 
+## Error Handling Modes
+
+Z-Fetch supports two error handling modes to suit different coding styles:
+
+### Default Mode (throwOnError: false)
+
+By default, errors are returned in `result.error` rather than thrown. This is safer and prevents unexpected crashes:
+
+```js
+const result = await api.get("/users");
+if (result.error) {
+  console.error("Error:", result.error.message);
+} else {
+  console.log("Data:", result.data);
+}
+```
+
+### Throwing Mode (throwOnError: true)
+
+Enable `throwOnError` for traditional try-catch error handling:
+
+```js
+import { GET, createInstance } from "@z-fetch/fetch";
+
+try {
+  const result = await GET("/users", { throwOnError: true });
+  console.log("Data:", result.data);
+} catch (error) {
+  console.error("Error:", error.message, error.status);
+}
+
+// Configure at instance level
+const api = createInstance({
+  baseUrl: "https://api.example.com",
+  throwOnError: true,
+});
+
+try {
+  const users = await api.get("/users");
+  const posts = await api.get("/posts");
+} catch (error) {
+  console.error("API Error:", error.message);
+}
+
+// Override per request
+const result = await api.get("/users", { throwOnError: false });
+if (result.error) {
+  // Back to default behavior
+}
+```
+
+<Callout title="Choose What Fits Your Style" type="info">
+  **Default mode** is safer and more explicit. **Throwing mode** is familiar to
+  developers coming from fetch/axios. Both modes work with all features: error
+  mapping, hooks, retries, and caching.
+</Callout>
+
+### throwOnError with Retries
+
+`throwOnError` works seamlessly with retry logic. Errors won't be thrown during retry attempts - only after all retries are exhausted:
+
+```js
+const api = createInstance({
+  throwOnError: true,
+  retry: true,
+  maxRetries: 3, // Will try: 1 original + 3 retries = 4 total attempts
+});
+
+try {
+  // If first request fails but retry succeeds, no error is thrown
+  const result = await api.get("/unstable-endpoint");
+  console.log("Success:", result.data);
+} catch (error) {
+  // Only thrown if ALL retry attempts fail
+  console.error("Failed after retries:", error.message);
+}
+```
+
+**How it works:**
+
+- During retry attempts, errors are not thrown
+- If a retry succeeds, `result.error` is cleared and success data is returned
+- Errors are only thrown after all retry attempts are exhausted
+- This ensures retry logic can work properly without interruption
+
 ## Error Modification
 
 ### Using setError Helper
@@ -141,30 +226,64 @@ onError: (context) => {
 
 ## Error Mapping
 
-Define custom error messages for common error patterns:
+By default, error mapping only applies to z-fetch internal errors. You can optionally enable it for backend HTTP errors.
+
+### Default: Map Z-Fetch Internal Errors Only
 
 ```js
 const api = createInstance({
   errorMapping: {
-    // HTTP status codes
+    // Network error patterns (z-fetch internal errors only)
+    "fetch failed": "Network connection failed",
+    "network error": "Network connection lost",
+    NetworkError: "Network connection lost",
+
+    // Custom patterns for network issues
+    ENOTFOUND: "Unable to connect to server",
+    ECONNREFUSED: "Connection refused by server",
+    ENETUNREACH: "Network unreachable",
+  },
+});
+
+// Backend errors use original statusText from your API
+const result = await api.get("/users");
+if (result.error) {
+  console.log(result.error.message); // "Unauthorized", "Not Found", etc.
+}
+```
+
+### Optional: Map Backend HTTP Errors
+
+Enable `mapErrors: true` to also map backend HTTP status codes:
+
+```js
+const api = createInstance({
+  mapErrors: true, // Enable mapping for backend errors
+  errorMapping: {
+    // Map backend HTTP status codes
     401: "Authentication failed - please sign in again",
     403: "Access denied - insufficient permissions",
     404: "Resource not found",
-    429: "Too many requests - please slow down",
     500: "Server error - please try again later",
-    503: "Service temporarily unavailable",
 
-    // Network error patterns
+    // Also map z-fetch internal errors
     "fetch failed": "Network connection failed",
-    NetworkError: "Network connection lost",
-    timeout: "Request timed out - please try again",
-
-    // Custom patterns
-    ENOTFOUND: "Unable to connect to server",
-    ECONNREFUSED: "Connection refused by server",
+    "network error": "Unable to connect",
   },
 });
+
+const result = await api.get("/users");
+if (result.error) {
+  console.log(result.error.message); // Custom mapped message
+}
 ```
+
+<Callout title="Backend Error Mapping is Optional" type="info">
+  By default (`mapErrors: false`), only z-fetch internal errors (NETWORK_ERROR,
+  TIMEOUT, CANCELED) are mapped. Backend HTTP errors use the original
+  `response.statusText`, allowing your backend to control error messages. Set
+  `mapErrors: true` to enable mapping for backend errors too.
+</Callout>
 
 ### Pattern Matching
 
@@ -173,13 +292,9 @@ Error mapping supports flexible pattern matching:
 ```js
 const api = createInstance({
   errorMapping: {
-    // Exact status codes
-    404: "Page not found",
-
     // Error message patterns (case-insensitive)
     "network error": "Please check your internet connection",
-    timeout: "Request took too long - please try again",
-    json: "Invalid response format received",
+    "fetch failed": "Unable to reach server",
 
     // Multiple patterns for the same message
     ENOTFOUND: "Cannot connect to server",
@@ -187,6 +302,16 @@ const api = createInstance({
     ENETUNREACH: "Cannot connect to server",
   },
 });
+
+// Determine error source
+const result = await api.get("/users");
+if (result.error) {
+  // If error.status is a number (400-599), it's from your backend
+  console.log(result.error.message); // Original or mapped based on mapErrors
+
+  // If error.status is a string like "NETWORK_ERROR", it's from z-fetch
+  // and may have been mapped via errorMapping
+}
 ```
 
 ## Real-World Examples
