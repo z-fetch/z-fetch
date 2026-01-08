@@ -280,18 +280,27 @@ function request(url, method, options = { ...defaultConfig }) {
       }
       return errObj;
     };
-    const performRequest = async () => {
+    const performRequest = async (disableThrow = false) => {
+      const originalThrowOnError = mergedConfig.throwOnError;
+      if (disableThrow) {
+        mergedConfig.throwOnError = false;
+      }
       if (shouldUseXHR) {
-        return await requestWithProgress(
+        const xhrOptions = disableThrow ? { ...options, throwOnError: false } : options;
+        const xhrResult = await requestWithProgress(
           url,
           method,
-          options,
+          xhrOptions,
           {
-            config: mergedConfig,
+            config: disableThrow ? { ...mergedConfig, throwOnError: false } : mergedConfig,
             onError: mergedConfig.hooks?.onError
           },
           signal
         );
+        if (disableThrow) {
+          mergedConfig.throwOnError = originalThrowOnError;
+        }
+        return xhrResult;
       }
       try {
         const headers = { ...config.headers, ...options.headers || {} };
@@ -362,10 +371,14 @@ function request(url, method, options = { ...defaultConfig }) {
           error = { message: mappedMessage, status: response.status };
           error = await handleError(error);
         } else {
+          error = null;
           const responseForData = response.clone();
           data = mergedConfig.parseJson ? await responseForData.json() : await responseForData.text();
         }
         loading = false;
+        if (disableThrow) {
+          mergedConfig.throwOnError = originalThrowOnError;
+        }
         return { loading, error, data, response };
       } catch (err) {
         let status = "NETWORK_ERROR";
@@ -394,6 +407,9 @@ function request(url, method, options = { ...defaultConfig }) {
         let errObj = { message, status };
         errObj = await handleError(errObj) || errObj;
         loading = false;
+        if (disableThrow) {
+          mergedConfig.throwOnError = originalThrowOnError;
+        }
         return { loading, error: errObj, data, response: null };
       }
     };
@@ -443,10 +459,11 @@ function request(url, method, options = { ...defaultConfig }) {
         }
       }, interval);
     };
-    let result = await performRequest();
+    const shouldDisableThrowForRetry = mergedConfig.retry && mergedConfig.throwOnError;
+    let result = await performRequest(shouldDisableThrowForRetry);
     while (mergedConfig.retry && retryCount < mergedConfig.maxRetries && result.error) {
       retryCount++;
-      result = await performRequest();
+      result = await performRequest(shouldDisableThrowForRetry);
     }
     const streamToString = async () => {
       if (!result.response) {
