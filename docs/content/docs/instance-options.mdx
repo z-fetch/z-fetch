@@ -12,6 +12,9 @@ Here is the list of all the available options and their default values when not 
 | `baseUrl`          | Base URL for all requests                            | Set a common base URL for all API requests | `''`                                                      |
 | `bearerToken`      | Bearer token for authentication                      | Authenticate requests with a bearer token  | `null`                                                    |
 | `timeout`          | Request timeout in milliseconds                      | Set a timeout for requests                 | `90000`                                                   |
+| `mapErrors`        | Create error objects for HTTP errors (400s, 500s)   | Enable traditional API library error handling | `false` (native fetch behavior)                          |
+| `throwOnError`     | Throw errors as exceptions instead of returning in result | Use try-catch error handling pattern    | `false`                                                   |
+| `errorMapping`     | Map status codes/patterns to custom error messages  | User-friendly error messages               | `{}`                                                      |
 | `retry`            | Whether to retry failed requests                     | Automatically retry failed requests        | `false`                                                   |
 | `maxRetries`       | Maximum number of retries                            | Set a limit on the number of retries       | `3`                                                       |
 | `startPolling`     | Whether to start polling automatically               | Enable automatic polling                   | `false`                                                   |
@@ -29,6 +32,18 @@ Here is the list of all the available options and their default values when not 
 | `credentials`      | Credentials mode for requests           | Set credentials mode ('include', 'same-origin', 'omit') | `undefined`                                              |
 | `cache`            | Cache mode for requests                 | Set cache mode ('default', 'no-store', 'reload', etc.) | `undefined`                                              |
 | `signal`           | AbortSignal for request cancellation   | Cancel requests using AbortController signal | `undefined`                                              |
+
+## Error Handling Options
+
+<Callout title="Native Fetch Behavior by Default" type="info">
+  By default (`mapErrors: false`), Z-Fetch behaves like native `fetch` - HTTP errors (400s, 500s) do NOT create error objects. You check `response.ok` manually. Set `mapErrors: true` to get traditional API library behavior where HTTP errors create error objects.
+</Callout>
+
+| Option | Default | Description |
+| ------ | ------- | ----------- |
+| `mapErrors` | `false` | When `false` (default), HTTP errors behave like native fetch - no error object is created. When `true`, HTTP errors create error objects with `status` and `message`. |
+| `throwOnError` | `false` | When `true` AND `mapErrors: true`, errors are thrown as exceptions instead of returned in `result.error`. |
+| `errorMapping` | `{}` | Map status codes (like `404`) or error patterns (like `"network error"`) to custom messages. Only applies when `mapErrors: true` for HTTP errors. |
 
 🤔 What about individual request options? See [request methods](/docs/methods/advanced-requests) for more details.
 

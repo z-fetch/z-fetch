@@ -198,78 +198,93 @@ const api = createInstance({
 
 ## Error Configuration
 
-### Error Handling Mode
+### Native Fetch Behavior (Default)
 
-Choose how errors are handled - returned in result or thrown:
+By default, Z-Fetch behaves like native `fetch` - HTTP errors (400s, 500s) do NOT create error objects:
 
 ```js
 const api = createInstance({
-  throwOnError: false, // Default: errors returned in result.error
+  baseUrl: "https://api.example.com",
+  // mapErrors: false is the default - native fetch behavior
 });
 
-// Or use throwing mode for traditional try-catch
-const apiWithThrow = createInstance({
-  throwOnError: true, // Errors are thrown as exceptions
+const result = await api.get("/users");
+
+// Check response.ok manually, like native fetch
+if (!result.response?.ok) {
+  console.log("HTTP error:", result.response?.status);
+  console.log("Response body:", result.data); // Still parsed
+} else {
+  console.log("Success:", result.data);
+}
+```
+
+### Traditional API Library Behavior
+
+Enable `mapErrors: true` to create error objects for HTTP errors:
+
+```js
+const api = createInstance({
+  baseUrl: "https://api.example.com",
+  mapErrors: true, // Create error objects for HTTP errors
+  throwOnError: false, // Default: errors in result.error
 });
 
-// Default mode usage
 const result = await api.get("/users");
 if (result.error) {
-  console.error("Error:", result.error);
+  console.error("Error:", result.error.message);
+  console.error("Status:", result.error.status);
 }
+```
 
-// Throwing mode usage
+### Throwing Mode
+
+When `mapErrors: true`, you can also throw errors as exceptions:
+
+```js
+const api = createInstance({
+  baseUrl: "https://api.example.com",
+  mapErrors: true, // Required for throwOnError to work on HTTP errors
+  throwOnError: true, // Throw errors as exceptions
+});
+
 try {
-  const result = await apiWithThrow.get("/users");
+  const result = await api.get("/users");
   console.log("Data:", result.data);
 } catch (error) {
   console.error("Error:", error.message, error.status);
 }
 ```
 
-<Callout title="Choose Your Style" type="info">
-  **throwOnError: false** (default) is safer and more explicit. **throwOnError:
-  true** is familiar for developers from fetch/axios. Both work with all
-  features.
+<Callout title="mapErrors Required for throwOnError" type="info">
+  `throwOnError` only affects HTTP errors when `mapErrors: true`. 
+  With `mapErrors: false` (default), HTTP errors don't create error objects, so there's nothing to throw.
+  Network/timeout/cancel errors always work with `throwOnError`.
 </Callout>
 
 ### Error Mapping
 
-Map errors to user-friendly text. By default, only z-fetch internal errors are mapped:
+Map status codes to user-friendly messages. Requires `mapErrors: true` for HTTP errors:
 
 ```js
 const api = createInstance({
-  throwOnError: true, // Works with error mapping
-  errorMapping: {
-    // Map z-fetch internal errors (default behavior)
-    "fetch failed": "Network connection failed",
-    "network error": "Unable to connect to server",
-    NetworkError: "Connection lost",
-  },
-});
-
-// Backend HTTP errors use original response.statusText from your API
-```
-
-Optionally enable mapping for backend HTTP errors:
-
-```js
-const api = createInstance({
-  mapErrors: true, // Enable mapping for backend errors
+  mapErrors: true, // Required for HTTP error mapping
   errorMapping: {
     // Map backend HTTP status codes
     401: "Please sign in",
     403: "Access denied",
     404: "Not found",
     500: "Server error",
-    // Also map z-fetch internal errors
+    // Also map z-fetch internal errors (always work)
     "fetch failed": "Network connection failed",
   },
 });
 ```
 
-<Callout title="Backend Error Mapping is Optional" type="info">
-  By default (`mapErrors: false`), only z-fetch internal errors (NETWORK_ERROR, TIMEOUT, CANCELED) are mapped. Set `mapErrors: true` to also map backend HTTP status codes.
+<Callout title="Error Mapping Requires mapErrors: true" type="info">
+  By default (`mapErrors: false`), HTTP errors do NOT create error objects.
+  Set `mapErrors: true` to enable error mapping for HTTP status codes.
+  Network/timeout/cancel errors always create error objects regardless of `mapErrors`.
 </Callout>
 
 ### Error Handling Hook

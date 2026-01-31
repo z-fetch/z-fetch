@@ -3,23 +3,67 @@ title: 🚨 Error Handling
 description: Comprehensive error handling with onError hook, error mapping, and custom error modification.
 ---
 
-Z-Fetch provides comprehensive error handling capabilities that intercept **all error types** and allow you to customize error messages and behavior throughout your application.
+Z-Fetch provides flexible error handling that defaults to native `fetch` behavior, with optional features for traditional API library-style error handling.
 
-## Error Types Covered
+## Default Behavior: Native Fetch Style
 
-The error handling system captures:
+By default (`mapErrors: false`), Z-Fetch behaves like native `fetch`:
 
-- **HTTP errors** (4xx/5xx status codes)
-- **Network errors** (connection failures, DNS issues)
-- **Timeout errors** (request timeouts → status: `TIMEOUT`, message: `"Request timed out!"`)
-- **Cancellation** (user-initiated abort → status: `CANCELED`, message: `"Request canceled"`)
-- **Parse errors** (invalid JSON responses)
-- **Request errors** (malformed requests)
+- **HTTP errors** (4xx/5xx) do NOT create error objects - check `response.ok` manually
+- **Network errors**, **timeouts**, and **cancellation** still create error objects
+- Response body is always parsed and available in `result.data`
 
-<Callout title="Complete Coverage" type="info">
-  The onError hook provides comprehensive error coverage and modification
-  capabilities for better user experience.
+```js
+import { createInstance } from "@z-fetch/fetch";
+
+const api = createInstance({
+  baseUrl: "https://api.example.com",
+  // mapErrors: false is the default - native fetch behavior
+});
+
+const result = await api.get("/users");
+
+// Check response.ok manually, like native fetch
+if (!result.response?.ok) {
+  console.log("HTTP error:", result.response?.status);
+  console.log("Response body:", result.data); // Still available
+} else {
+  console.log("Success:", result.data);
+}
+```
+
+<Callout title="Native Fetch Behavior by Default" type="info">
+  With `mapErrors: false` (default), HTTP errors do NOT create error objects.
+  This matches native `fetch` behavior where you check `response.ok` manually.
+  Network/timeout/cancel errors still create error objects.
 </Callout>
+
+## Optional: Traditional API Library Behavior
+
+Enable `mapErrors: true` to create error objects for HTTP errors:
+
+```js
+const api = createInstance({
+  baseUrl: "https://api.example.com",
+  mapErrors: true, // Enable error objects for HTTP errors
+});
+
+const result = await api.get("/users");
+if (result.error) {
+  console.log("Error:", result.error.message); // statusText or mapped message
+  console.log("Status:", result.error.status); // 400, 404, 500, etc.
+}
+```
+
+## Error Types
+
+With `mapErrors: true`, the error handling system captures:
+
+- **HTTP errors** (4xx/5xx status codes) - only when `mapErrors: true`
+- **Network errors** (connection failures, DNS issues) - always
+- **Timeout errors** (request timeouts → status: `TIMEOUT`, message: `"Request timed out!"`) - always
+- **Cancellation** (user-initiated abort → status: `CANCELED`, message: `"Request canceled"`) - always
+- **Parse errors** (invalid JSON responses) - always
 
 ## Cancellation and Timeout
 
@@ -27,7 +71,7 @@ Z-Fetch standardizes cancellation and timeouts across both fetch and XHR paths:
 
 - Cancellation (manual abort) yields `error.status = 'CANCELED'` and `error.message = 'Request canceled'`.
 - Timeout (exceeding configured `timeout`) yields `error.status = 'TIMEOUT'` and `error.message = 'Request timed out!'`.
-- Error mapping does not override cancel/timeout messages by default.
+- These errors are created regardless of `mapErrors` setting.
 
 ```js
 // Cancel via cancelable promise
@@ -44,7 +88,7 @@ if (r2.error?.status === "TIMEOUT") {
 
 ## onError Hook
 
-The `onError` hook intercepts all errors and allows you to modify them:
+The `onError` hook intercepts all errors and allows you to modify them (requires `mapErrors: true` for HTTP errors):
 
 ```js
 import { createInstance } from "@z-fetch/fetch";
@@ -226,39 +270,13 @@ onError: (context) => {
 
 ## Error Mapping
 
-By default, error mapping only applies to z-fetch internal errors. You can optionally enable it for backend HTTP errors.
+Error mapping only works when `mapErrors: true`. By default (`mapErrors: false`), HTTP errors do not create error objects at all.
 
-### Default: Map Z-Fetch Internal Errors Only
-
-```js
-const api = createInstance({
-  errorMapping: {
-    // Network error patterns (z-fetch internal errors only)
-    "fetch failed": "Network connection failed",
-    "network error": "Network connection lost",
-    NetworkError: "Network connection lost",
-
-    // Custom patterns for network issues
-    ENOTFOUND: "Unable to connect to server",
-    ECONNREFUSED: "Connection refused by server",
-    ENETUNREACH: "Network unreachable",
-  },
-});
-
-// Backend errors use original statusText from your API
-const result = await api.get("/users");
-if (result.error) {
-  console.log(result.error.message); // "Unauthorized", "Not Found", etc.
-}
-```
-
-### Optional: Map Backend HTTP Errors
-
-Enable `mapErrors: true` to also map backend HTTP status codes:
+### With `mapErrors: true`: Map HTTP Status Codes
 
 ```js
 const api = createInstance({
-  mapErrors: true, // Enable mapping for backend errors
+  mapErrors: true, // Required for error mapping to work on HTTP errors
   errorMapping: {
     // Map backend HTTP status codes
     401: "Authentication failed - please sign in again",
@@ -266,7 +284,7 @@ const api = createInstance({
     404: "Resource not found",
     500: "Server error - please try again later",
 
-    // Also map z-fetch internal errors
+    // Also map z-fetch internal errors (network, timeout, etc.)
     "fetch failed": "Network connection failed",
     "network error": "Unable to connect",
   },
@@ -278,11 +296,27 @@ if (result.error) {
 }
 ```
 
-<Callout title="Backend Error Mapping is Optional" type="info">
-  By default (`mapErrors: false`), only z-fetch internal errors (NETWORK_ERROR,
-  TIMEOUT, CANCELED) are mapped. Backend HTTP errors use the original
-  `response.statusText`, allowing your backend to control error messages. Set
-  `mapErrors: true` to enable mapping for backend errors too.
+### Network Error Mapping (Always Works)
+
+Network/timeout/cancel errors always create error objects, so mapping works for them regardless of `mapErrors`:
+
+```js
+const api = createInstance({
+  // mapErrors: false (default) - HTTP errors don't create error objects
+  errorMapping: {
+    // These patterns match network errors (always work)
+    "fetch failed": "Network connection failed",
+    "network error": "Network connection lost",
+    ENOTFOUND: "Unable to connect to server",
+    ECONNREFUSED: "Connection refused by server",
+  },
+});
+```
+
+<Callout title="mapErrors: true Required for HTTP Error Mapping" type="info">
+  By default (`mapErrors: false`), HTTP errors do NOT create error objects at all - just like native `fetch`. 
+  You must set `mapErrors: true` for error mapping to work on HTTP status codes (400s, 500s).
+  Network/timeout/cancel errors always create error objects regardless of `mapErrors`.
 </Callout>
 
 ### Pattern Matching
