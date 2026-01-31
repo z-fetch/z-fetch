@@ -107,6 +107,8 @@ describe("Backwards Compatibility Tests", () => {
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
+        mapErrors: true, // Required for HTTP errors to trigger onError hook
+        withCache: false,
         hooks: {
           onError: async (_context) => {
             return {
@@ -119,7 +121,7 @@ describe("Backwards Compatibility Tests", () => {
         },
       });
 
-      const result = await api.get("/notfound");
+      const result = await api.get("/notfound-old-style");
 
       expect(result.error).toMatchObject({
         message: "Custom error from old-style return",

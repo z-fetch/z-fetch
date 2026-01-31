@@ -1040,7 +1040,8 @@ function request(
     if (mergedConfig.withCache && method === "GET" && cache.has(cacheKey)) {
       setTimeout(() => {
         performRequest().then((newResult) => {
-          if (!newResult.error) {
+          // Only cache successful responses (check response.ok, not just !error)
+          if (newResult.response?.ok) {
             cache.set(cacheKey, {
               ...newResult,
               refetch,
@@ -1063,8 +1064,8 @@ function request(
       return;
     }
 
-    // Cache successful GET requests
-    if (mergedConfig.withCache && method === "GET" && !result.error) {
+    // Cache successful GET requests (only when response.ok is true, not just when there's no error object)
+    if (mergedConfig.withCache && method === "GET" && result.response?.ok) {
       cache.set(cacheKey, {
         ...result,
         refetch,

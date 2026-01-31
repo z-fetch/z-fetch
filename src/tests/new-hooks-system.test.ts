@@ -323,6 +323,8 @@ describe("New Hooks System Tests", () => {
     it("should modify error using setError", async () => {
       const api = createInstance({
         baseUrl: "https://api.example.com",
+        mapErrors: true, // Required for HTTP errors to create error objects
+        withCache: false,
         hooks: {
           onError: async (context) => {
             context.setError({
@@ -333,7 +335,7 @@ describe("New Hooks System Tests", () => {
         },
       });
 
-      const result = await api.get("/notfound");
+      const result = await api.get("/notfound-seterror");
 
       expect(result.error).toMatchObject({
         message: "Custom error message from hook",
@@ -346,6 +348,8 @@ describe("New Hooks System Tests", () => {
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
+        mapErrors: true, // Required for HTTP errors to trigger onError hook
+        withCache: false,
         hooks: {
           onError: async (context) => {
             capturedContext = context;
@@ -357,10 +361,10 @@ describe("New Hooks System Tests", () => {
         },
       });
 
-      await api.get("/notfound");
+      await api.get("/notfound-context-access");
 
       expect(capturedContext).toBeTruthy();
-      expect(capturedContext!.request.url).toBe("/notfound");
+      expect(capturedContext!.request.url).toBe("/notfound-context-access");
       expect(capturedContext!.request.method).toBe("GET");
     });
   });

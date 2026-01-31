@@ -53,11 +53,13 @@ describe("onError Hook Tests", () => {
   });
 
   describe("HTTP Error Handling", () => {
-    it("should call onError hook when HTTP error occurs", async () => {
+    it("should call onError hook when HTTP error occurs with mapErrors: true", async () => {
       const onErrorSpy = vi.fn();
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
+        mapErrors: true, // Required for HTTP errors to create error objects
+        withCache: false,
         hooks: {
           onError: onErrorSpy,
         },
@@ -87,9 +89,31 @@ describe("onError Hook Tests", () => {
       expect(result.error?.status).toBe(404);
     });
 
-    it("should allow onError hook to modify error message", async () => {
+    it("should NOT call onError hook for HTTP errors when mapErrors: false (native fetch)", async () => {
+      const onErrorSpy = vi.fn();
+
       const api = createInstance({
         baseUrl: "https://api.example.com",
+        mapErrors: false, // Default - like native fetch
+        withCache: false,
+        hooks: {
+          onError: onErrorSpy,
+        },
+      });
+
+      const result = await api.get("/notfound-no-map");
+
+      // onError hook is NOT called because no error object is created
+      expect(onErrorSpy).not.toHaveBeenCalled();
+      expect(result.error).toBeNull();
+      expect(result.response?.ok).toBe(false);
+    });
+
+    it("should allow onError hook to modify error message when mapErrors: true", async () => {
+      const api = createInstance({
+        baseUrl: "https://api.example.com",
+        mapErrors: true,
+        withCache: false,
         hooks: {
           onError: async (context) => {
             context.setError({
@@ -100,7 +124,7 @@ describe("onError Hook Tests", () => {
         },
       });
 
-      const result = await api.get("/notfound");
+      const result = await api.get("/notfound-modify");
 
       expect(result.error).toBeTruthy();
       expect(result.error?.message).toBe("Custom error message from hook");
@@ -110,6 +134,8 @@ describe("onError Hook Tests", () => {
     it("should allow onError hook to modify error via return value", async () => {
       const api = createInstance({
         baseUrl: "https://api.example.com",
+        mapErrors: true,
+        withCache: false,
         hooks: {
           onError: async () => {
             return {
@@ -122,7 +148,7 @@ describe("onError Hook Tests", () => {
         },
       });
 
-      const result = await api.get("/notfound");
+      const result = await api.get("/notfound-return");
 
       expect(result.error).toBeTruthy();
       expect(result.error?.message).toBe("Modified via return value");
@@ -139,12 +165,13 @@ describe("onError Hook Tests", () => {
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
+        withCache: false,
         hooks: {
           onError: onErrorSpy,
         },
       });
 
-      const result = await api.get("/test");
+      const result = await api.get("/test-network");
 
       expect(onErrorSpy).toHaveBeenCalledTimes(1);
       expect(onErrorSpy).toHaveBeenCalledWith(
@@ -166,6 +193,7 @@ describe("onError Hook Tests", () => {
       const api = createInstance({
         baseUrl: "https://api.example.com",
         onUploadProgress: () => {}, // Force XMLHttpRequest usage
+        withCache: false,
         hooks: {
           onError: onErrorSpy,
         },
@@ -180,7 +208,7 @@ describe("onError Hook Tests", () => {
         },
       );
 
-      const result = await api.post("/upload", { body: { data: "test" } });
+      const result = await api.post("/upload-network", { body: { data: "test" } });
 
       expect(onErrorSpy).toHaveBeenCalledTimes(1);
       expect(onErrorSpy).toHaveBeenCalledWith(
@@ -205,6 +233,7 @@ describe("onError Hook Tests", () => {
         baseUrl: "https://api.example.com",
         timeout: 100,
         onDownloadProgress: () => {}, // Force XMLHttpRequest usage
+        withCache: false,
         hooks: {
           onError: onErrorSpy,
         },
@@ -219,7 +248,7 @@ describe("onError Hook Tests", () => {
         },
       );
 
-      const result = await api.get("/slow");
+      const result = await api.get("/slow-timeout");
 
       expect(onErrorSpy).toHaveBeenCalledTimes(1);
       expect(onErrorSpy).toHaveBeenCalledWith(
@@ -237,13 +266,17 @@ describe("onError Hook Tests", () => {
   });
 
   describe("Parse Error Handling", () => {
-    it("should call onError hook for JSON parse errors with XMLHttpRequest", async () => {
+    it("should NOT call onError hook for JSON parse errors in XHR when mapErrors: false", async () => {
+      // With mapErrors: false, parse errors on successful responses don't create error objects
+      // The data is just set to null when parsing fails
       const onErrorSpy = vi.fn();
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
         parseJson: true,
+        mapErrors: false, // Default behavior
         onUploadProgress: () => {}, // Force XMLHttpRequest usage
+        withCache: false,
         hooks: {
           onError: onErrorSpy,
         },
@@ -261,80 +294,78 @@ describe("onError Hook Tests", () => {
         },
       );
 
-      const result = await api.post("/upload", { body: { data: "test" } });
+      const result = await api.post("/upload-parse", { body: { data: "test" } });
 
-      expect(onErrorSpy).toHaveBeenCalledTimes(1);
-      expect(onErrorSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          error: expect.objectContaining({
-            message: "Failed to parse response",
-            status: "PARSE_ERROR",
-          }),
-        }),
-      );
-
-      expect(result.error).toBeTruthy();
-      expect(result.error?.status).toBe("PARSE_ERROR");
+      // With the new behavior, parse failures just leave data as null
+      // The onError hook is NOT called because response.ok was true
+      expect(result.error).toBeNull();
+      expect(result.data).toBeNull();
     });
   });
 
   describe("Error Mapping Integration", () => {
-    it("should NOT apply error mapping to backend errors", async () => {
+    it("should apply error mapping to HTTP errors when mapErrors: true", async () => {
       const onErrorSpy = vi.fn();
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
+        mapErrors: true, // Enable error mapping for HTTP errors
+        withCache: false,
         errorMapping: {
-          404: "This should NOT be used for backend errors",
+          404: "Custom mapped message for 404",
         },
         hooks: {
           onError: onErrorSpy,
         },
       });
 
-      const result = await api.get("/notfound");
+      const result = await api.get("/notfound-mapping");
 
       expect(onErrorSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           error: expect.objectContaining({
-            message: "Not Found", // Original statusText
+            message: "Custom mapped message for 404",
             status: 404,
           }),
         }),
       );
 
-      expect(result.error?.message).toBe("Not Found");
+      expect(result.error?.message).toBe("Custom mapped message for 404");
     });
 
-    it("should allow onError hook to modify backend error messages", async () => {
+    it("should allow onError hook to modify mapped error messages", async () => {
       const api = createInstance({
         baseUrl: "https://api.example.com",
+        mapErrors: true,
+        withCache: false,
         errorMapping: {
-          404: "This should NOT be used for backend errors",
+          404: "Original mapped message",
         },
         hooks: {
           onError: async (context) => {
             context.setError({
-              message: "Hook modified backend error",
+              message: "Hook modified the mapped error",
               status: context.error?.status || "UNKNOWN",
             });
           },
         },
       });
 
-      const result = await api.get("/notfound");
+      const result = await api.get("/notfound-hook-modify");
 
-      expect(result.error?.message).toBe("Hook modified backend error");
+      expect(result.error?.message).toBe("Hook modified the mapped error");
       expect(result.error?.status).toBe(404);
     });
   });
 
   describe("Hook Context Properties", () => {
-    it("should provide complete context to onError hook", async () => {
+    it("should provide complete context to onError hook for HTTP errors", async () => {
       let capturedContext: Context | null = null;
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
+        mapErrors: true, // Required to get error object for HTTP errors
+        withCache: false,
         headers: {
           "X-Custom": "value",
         },
@@ -345,7 +376,7 @@ describe("onError Hook Tests", () => {
         },
       });
 
-      await api.post("/notfound", {
+      await api.post("/notfound-context", {
         body: { test: "data" },
         headers: { "X-Request": "header" },
       });
@@ -356,7 +387,7 @@ describe("onError Hook Tests", () => {
       expect(context.config).toBeDefined();
       expect(context.request).toMatchObject({
         method: "POST",
-        url: "/notfound",
+        url: "/notfound-context",
         options: expect.objectContaining({
           body: { test: "data" },
           headers: expect.objectContaining({
@@ -374,13 +405,15 @@ describe("onError Hook Tests", () => {
   });
 
   describe("Multiple Hook Integration", () => {
-    it("should work alongside onRequest and onResponse hooks", async () => {
+    it("should work alongside onRequest and onResponse hooks when mapErrors: true", async () => {
       const onRequestSpy = vi.fn();
       const onResponseSpy = vi.fn();
       const onErrorSpy = vi.fn();
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
+        mapErrors: true,
+        withCache: false,
         hooks: {
           onRequest: onRequestSpy,
           onResponse: onResponseSpy,
@@ -388,7 +421,7 @@ describe("onError Hook Tests", () => {
         },
       });
 
-      await api.get("/notfound");
+      await api.get("/notfound-hooks");
 
       expect(onRequestSpy).toHaveBeenCalledTimes(1);
       expect(onErrorSpy).toHaveBeenCalledTimes(1);
@@ -403,6 +436,7 @@ describe("onError Hook Tests", () => {
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
+        withCache: false,
         hooks: {
           onError: onErrorSpy,
         },
