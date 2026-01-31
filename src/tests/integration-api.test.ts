@@ -28,17 +28,11 @@ describe("Integration Tests with Real APIs", () => {
 
   beforeAll(async () => {
     networkAvailable = await isNetworkAvailable();
-    if (!networkAvailable) {
-      console.log("⚠️ Network not available, skipping real API tests");
-    }
   });
 
   describe("Direct function calls (global config)", () => {
-    it("GET should fetch posts from JSONPlaceholder", async () => {
-      if (!networkAvailable) {
-        console.log("Skipping: no network");
-        return;
-      }
+    it.skipIf(!globalThis.fetch)("GET should fetch posts from JSONPlaceholder", async () => {
+      if (!networkAvailable) return;
 
       const result = await GET(`${JSONPLACEHOLDER_URL}/posts/1`, {
         withCache: false,
@@ -55,11 +49,8 @@ describe("Integration Tests with Real APIs", () => {
       });
     });
 
-    it("POST should create a post on JSONPlaceholder", async () => {
-      if (!networkAvailable) {
-        console.log("Skipping: no network");
-        return;
-      }
+    it.skipIf(!globalThis.fetch)("POST should create a post on JSONPlaceholder", async () => {
+      if (!networkAvailable) return;
 
       const newPost = {
         title: "Test Post",
@@ -86,11 +77,8 @@ describe("Integration Tests with Real APIs", () => {
 
   describe("Instance-level config (createInstance)", () => {
     describe("mapErrors: false (default, native fetch behavior)", () => {
-      it("should successfully fetch data on 200", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("should successfully fetch data on 200", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -111,11 +99,8 @@ describe("Integration Tests with Real APIs", () => {
         });
       });
 
-      it("should NOT create error for 404 - behave like native fetch", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("should NOT create error for 404 - behave like native fetch", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -134,11 +119,8 @@ describe("Integration Tests with Real APIs", () => {
         expect(result.data).toBeDefined();
       });
 
-      it("should make POST request successfully", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("should make POST request successfully", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -159,11 +141,8 @@ describe("Integration Tests with Real APIs", () => {
         expect(result.data?.id).toBeDefined();
       });
 
-      it("should make PUT request successfully", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("should make PUT request successfully", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -185,11 +164,8 @@ describe("Integration Tests with Real APIs", () => {
         expect(result.data?.title).toBe("Updated Title");
       });
 
-      it("should make DELETE request successfully", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("should make DELETE request successfully", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -206,11 +182,8 @@ describe("Integration Tests with Real APIs", () => {
     });
 
     describe("mapErrors: true (create error objects for HTTP errors)", () => {
-      it("should successfully fetch data on 200", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("should successfully fetch data on 200", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -229,11 +202,8 @@ describe("Integration Tests with Real APIs", () => {
         });
       });
 
-      it("should CREATE error object for 404", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("should CREATE error object for 404", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -252,11 +222,8 @@ describe("Integration Tests with Real APIs", () => {
     });
 
     describe("mapErrors: true + throwOnError: true", () => {
-      it("should not throw on successful request", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("should not throw on successful request", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -271,11 +238,8 @@ describe("Integration Tests with Real APIs", () => {
         expect(result.data?.id).toBe(1);
       });
 
-      it("should THROW on 404 error", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("should THROW on 404 error", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -292,11 +256,8 @@ describe("Integration Tests with Real APIs", () => {
     });
 
     describe("errorMapping", () => {
-      it("should use custom error mapping for 404", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("should use custom error mapping for 404", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -320,11 +281,8 @@ describe("Integration Tests with Real APIs", () => {
 
   describe("Per-request config overrides", () => {
     describe("mapErrors override", () => {
-      it("per-request mapErrors: true should override instance mapErrors: false", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("per-request mapErrors: true should override instance mapErrors: false", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -342,11 +300,8 @@ describe("Integration Tests with Real APIs", () => {
         expect(result.error?.status).toBe(404);
       });
 
-      it("per-request mapErrors: false should override instance mapErrors: true", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("per-request mapErrors: false should override instance mapErrors: true", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -367,11 +322,8 @@ describe("Integration Tests with Real APIs", () => {
     });
 
     describe("throwOnError override", () => {
-      it("per-request throwOnError: true should override instance throwOnError: false", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("per-request throwOnError: true should override instance throwOnError: false", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -388,11 +340,8 @@ describe("Integration Tests with Real APIs", () => {
         });
       });
 
-      it("per-request throwOnError: false should override instance throwOnError: true", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("per-request throwOnError: false should override instance throwOnError: true", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -413,11 +362,8 @@ describe("Integration Tests with Real APIs", () => {
     });
 
     describe("errorMapping override", () => {
-      it("per-request errorMapping should override instance errorMapping", async () => {
-        if (!networkAvailable) {
-          console.log("Skipping: no network");
-          return;
-        }
+      it.skipIf(!globalThis.fetch)("per-request errorMapping should override instance errorMapping", async () => {
+        if (!networkAvailable) return;
 
         const api = createInstance({
           baseUrl: JSONPLACEHOLDER_URL,
@@ -442,11 +388,8 @@ describe("Integration Tests with Real APIs", () => {
   });
 
   describe("Global config vs Instance config", () => {
-    it("instance config should be isolated from other instances", async () => {
-      if (!networkAvailable) {
-        console.log("Skipping: no network");
-        return;
-      }
+    it.skipIf(!globalThis.fetch)("instance config should be isolated from other instances", async () => {
+      if (!networkAvailable) return;
 
       const apiWithErrors = createInstance({
         baseUrl: JSONPLACEHOLDER_URL,
@@ -473,11 +416,8 @@ describe("Integration Tests with Real APIs", () => {
       expect(result.response?.ok).toBe(false);
     });
 
-    it("direct GET/POST calls should use global defaults", async () => {
-      if (!networkAvailable) {
-        console.log("Skipping: no network");
-        return;
-      }
+    it.skipIf(!globalThis.fetch)("direct GET/POST calls should use global defaults", async () => {
+      if (!networkAvailable) return;
 
       // Direct GET calls should behave like native fetch (mapErrors: false by default)
       const result = await GET(`${JSONPLACEHOLDER_URL}/posts/99999`, {
@@ -492,11 +432,8 @@ describe("Integration Tests with Real APIs", () => {
   });
 
   describe("Response data parsing", () => {
-    it("should correctly parse JSON responses", async () => {
-      if (!networkAvailable) {
-        console.log("Skipping: no network");
-        return;
-      }
+    it.skipIf(!globalThis.fetch)("should correctly parse JSON responses", async () => {
+      if (!networkAvailable) return;
 
       const api = createInstance({
         baseUrl: JSONPLACEHOLDER_URL,
@@ -516,11 +453,8 @@ describe("Integration Tests with Real APIs", () => {
       });
     });
 
-    it("should preserve response object for manual inspection", async () => {
-      if (!networkAvailable) {
-        console.log("Skipping: no network");
-        return;
-      }
+    it.skipIf(!globalThis.fetch)("should preserve response object for manual inspection", async () => {
+      if (!networkAvailable) return;
 
       const api = createInstance({
         baseUrl: JSONPLACEHOLDER_URL,
@@ -538,11 +472,8 @@ describe("Integration Tests with Real APIs", () => {
   });
 
   describe("Headers configuration", () => {
-    it("should use instance-level headers", async () => {
-      if (!networkAvailable) {
-        console.log("Skipping: no network");
-        return;
-      }
+    it.skipIf(!globalThis.fetch)("should use instance-level headers", async () => {
+      if (!networkAvailable) return;
 
       const api = createInstance({
         baseUrl: JSONPLACEHOLDER_URL,
@@ -558,11 +489,8 @@ describe("Integration Tests with Real APIs", () => {
       expect(result.data).toBeDefined();
     });
 
-    it("should allow per-request header overrides", async () => {
-      if (!networkAvailable) {
-        console.log("Skipping: no network");
-        return;
-      }
+    it.skipIf(!globalThis.fetch)("should allow per-request header overrides", async () => {
+      if (!networkAvailable) return;
 
       const api = createInstance({
         baseUrl: JSONPLACEHOLDER_URL,
