@@ -178,7 +178,7 @@ export type Config = {
     [statusCode: number]: string;
     [statusPattern: string]: string;
   };
-  /** Whether to apply error mapping to backend HTTP errors (400s, 500s). Default: false (only maps z-fetch internal errors) */
+  /** Whether to handle HTTP errors (400s, 500s). Default: false behaves like native fetch - no error object created, user checks response.ok manually. When true, creates error objects for non-ok responses and applies errorMapping. */
   mapErrors: boolean;
   /** Whether to throw errors instead of returning them in result.error */
   throwOnError: boolean;
@@ -410,47 +410,49 @@ async function requestWithProgress(
       let data: any = null;
       let response: Response | null = null;
 
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          data = mergedConfig.parseJson
+      // Try to parse response data regardless of status (like native fetch)
+      try {
+        data = mergedConfig.parseJson
+          ? JSON.parse(xhr.responseText)
+          : xhr.responseText;
+      } catch {
+        // If parsing fails, leave data as null
+        data = null;
+      }
+
+      // Create a mock Response object for compatibility
+      const isOk = xhr.status >= 200 && xhr.status < 300;
+      response = {
+        ok: isOk,
+        status: xhr.status,
+        statusText: xhr.statusText,
+        url: fullUrl,
+        headers: new Headers(),
+        json: async () =>
+          mergedConfig.parseJson
             ? JSON.parse(xhr.responseText)
-            : xhr.responseText;
-          // Create a mock Response object for compatibility
-          response = {
-            ok: true,
-            status: xhr.status,
-            statusText: xhr.statusText,
-            url: fullUrl,
-            headers: new Headers(),
-            json: async () =>
-              mergedConfig.parseJson
-                ? JSON.parse(xhr.responseText)
-                : xhr.responseText,
-            text: async () => xhr.responseText,
-            blob: async () => new Blob([xhr.response]),
-            arrayBuffer: async () => xhr.response as any,
-            formData: async () => new FormData(),
-            body: null,
-            bodyUsed: false,
-            clone: function () {
-              return this;
-            },
-            type: "basic",
-            redirected: false,
-          } as Response;
-        } catch {
-          error = {
-            message: "Failed to parse response",
-            status: "PARSE_ERROR",
-          };
-          error = await handleError(error);
-        }
-      } else {
+            : xhr.responseText,
+        text: async () => xhr.responseText,
+        blob: async () => new Blob([xhr.response]),
+        arrayBuffer: async () => xhr.response as any,
+        formData: async () => new FormData(),
+        body: null,
+        bodyUsed: false,
+        clone: function () {
+          return this;
+        },
+        type: "basic",
+        redirected: false,
+      } as Response;
+
+      // When mapErrors is false, behave like native fetch - no error handling for HTTP errors
+      // User can check response.ok manually
+      if (!isOk && mergedConfig.mapErrors) {
         const originalMessage = xhr.statusText;
         let mappedMessage = originalMessage;
 
-        // Apply error mapping to backend errors if mapErrors is enabled
-        if (mergedConfig.mapErrors && mergedConfig.errorMapping) {
+        // Apply error mapping to backend errors if errorMapping is provided
+        if (mergedConfig.errorMapping) {
           // Check for exact status code match
           if (mergedConfig.errorMapping[xhr.status]) {
             mappedMessage = mergedConfig.errorMapping[xhr.status];
@@ -776,12 +778,14 @@ function request(
         const response = await fetch(fullUrl, fetchOptions);
         clearTimeout(timeoutId);
 
-        if (!response.ok) {
+        // When mapErrors is false, behave like native fetch - no error handling for HTTP errors
+        // User can check response.ok manually
+        if (!response.ok && mergedConfig.mapErrors) {
           const originalMessage = response.statusText;
           let mappedMessage = originalMessage;
 
-          // Apply error mapping to backend errors if mapErrors is enabled
-          if (mergedConfig.mapErrors && mergedConfig.errorMapping) {
+          // Apply error mapping to backend errors if errorMapping is provided
+          if (mergedConfig.errorMapping) {
             // Check for exact status code match
             if (mergedConfig.errorMapping[response.status]) {
               mappedMessage = mergedConfig.errorMapping[response.status];
@@ -814,13 +818,21 @@ function request(
           error = { message: mappedMessage, status: response.status };
           error = await handleError(error);
         } else {
-          // Clear error on success
+          // Clear error on success (or when mapErrors is false for HTTP errors)
           error = null;
-          // Clone response for data extraction to preserve body for streaming utilities
-          const responseForData = response.clone();
+        }
+
+        // Always try to parse response data (like native fetch)
+        // Clone response for data extraction to preserve body for streaming utilities
+        try {
+          const responseForData =
+            typeof response.clone === "function" ? response.clone() : response;
           data = mergedConfig.parseJson
             ? await responseForData.json()
             : await responseForData.text();
+        } catch {
+          // If parsing fails (e.g., empty response), leave data as null
+          data = null;
         }
 
         loading = false;
