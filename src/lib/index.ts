@@ -178,7 +178,11 @@ export type Config = {
     [statusCode: number]: string;
     [statusPattern: string]: string;
   };
-  /** Whether to handle HTTP errors (400s, 500s). Default: false behaves like native fetch - no error object created, user checks response.ok manually. When true, creates error objects for non-ok responses and applies errorMapping. */
+  /**
+   * Whether to handle HTTP errors (400s, 500s).
+   * - false (default): Like native fetch - no error object, check response.ok manually
+   * - true: Creates error objects for non-ok responses, applies errorMapping
+   */
   mapErrors: boolean;
   /** Whether to throw errors instead of returning them in result.error */
   throwOnError: boolean;
@@ -824,6 +828,7 @@ function request(
 
         // Always try to parse response data (like native fetch)
         // Clone response for data extraction to preserve body for streaming utilities
+        // Note: Check for clone function to handle mock Response objects in tests
         try {
           const responseForData =
             typeof response.clone === "function" ? response.clone() : response;
