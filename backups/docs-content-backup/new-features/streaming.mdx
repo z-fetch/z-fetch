@@ -1,0 +1,350 @@
+---
+title: 🟡 Streaming Utilities
+description: Process response streams with powerful built-in utilities for real-time data handling.
+---
+
+Z-Fetch provides comprehensive streaming utilities that make it easy to work with response streams for real-time data processing, large file handling, and memory-efficient operations.
+
+## Available Streaming Methods
+
+- **`streamToString()`** - Convert stream to string
+- **`streamToBlob()`** - Convert stream to Blob (files/media)
+- **`streamToArrayBuffer()`** - Convert stream to ArrayBuffer (binary)
+- **`streamChunks(callback)`** - Process chunks as they arrive
+
+<Callout title="Automatic Resource Management" type="info">
+  All streaming utilities include automatic resource cleanup and comprehensive error handling.
+</Callout>
+
+## Basic Streaming
+
+### Stream to String
+
+Perfect for text-based APIs and content:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const processTextStream = async () => {
+  const result = await GET('https://api.example.com/stream-data');
+
+  if (result.streamToString) {
+    try {
+      const textData = await result.streamToString();
+      console.log('Streamed text:', textData);
+      processTextContent(textData);
+    } catch (error) {
+      console.error('Streaming failed:', error.message);
+    }
+  }
+};
+```
+
+### Stream to Blob
+
+Ideal for files, images, and media:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const downloadImage = async () => {
+  const result = await GET('https://api.example.com/image.jpg');
+
+  if (result.streamToBlob) {
+    try {
+      const blobData = await result.streamToBlob();
+      
+      // Create object URL for display
+      const imageUrl = URL.createObjectURL(blobData);
+      document.getElementById('image').src = imageUrl;
+      
+      // Cleanup when done
+      setTimeout(() => URL.revokeObjectURL(imageUrl), 1000);
+    } catch (error) {
+      console.error('Image streaming failed:', error.message);
+    }
+  }
+};
+```
+
+### Stream to ArrayBuffer
+
+For binary data processing:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const processBinaryData = async () => {
+  const result = await GET('https://api.example.com/binary-data');
+
+  if (result.streamToArrayBuffer) {
+    try {
+      const bufferData = await result.streamToArrayBuffer();
+      
+      // Process binary data
+      const view = new DataView(bufferData);
+      const header = view.getUint32(0, true); // Little-endian
+      
+      processBinaryFormat(bufferData);
+    } catch (error) {
+      console.error('Binary streaming failed:', error.message);
+    }
+  }
+};
+```
+
+## Chunk Processing
+
+Process data as it arrives for real-time applications:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const processStreamChunks = async () => {
+  const result = await GET('https://api.example.com/live-data');
+
+  if (result.streamChunks) {
+    try {
+      await result.streamChunks((chunk) => {
+        // Process each chunk as it arrives
+        console.log('Received chunk:', chunk);
+        
+        // Convert chunk to text if needed
+        const textChunk = new TextDecoder().decode(chunk);
+        processDataChunk(textChunk);
+        
+        // Update UI in real-time
+        updateLiveDisplay(textChunk);
+      });
+      
+      console.log('Stream processing complete!');
+    } catch (error) {
+      console.error('Chunk processing failed:', error.message);
+    }
+  }
+};
+```
+
+## Real-World Examples
+
+### Processing Large Datasets
+
+Handle large datasets without loading everything into memory:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const processLargeDataset = async () => {
+  const result = await GET('https://api.example.com/large-dataset');
+  
+  let processedRecords = 0;
+  let buffer = '';
+
+  await result.streamChunks((chunk) => {
+    // Append chunk to buffer
+    buffer += new TextDecoder().decode(chunk);
+    
+    // Process complete lines
+    const lines = buffer.split('\n');
+    buffer = lines.pop(); // Keep incomplete line in buffer
+    
+    lines.forEach(line => {
+      if (line.trim()) {
+        try {
+          const record = JSON.parse(line);
+          processRecord(record);
+          processedRecords++;
+          
+          // Update progress
+          if (processedRecords % 1000 === 0) {
+            console.log(`Processed ${processedRecords} records...`);
+          }
+        } catch (e) {
+          console.warn('Skipped invalid record:', line);
+        }
+      }
+    });
+  });
+  
+  // Process remaining buffer
+  if (buffer.trim()) {
+    try {
+      const record = JSON.parse(buffer);
+      processRecord(record);
+      processedRecords++;
+    } catch (e) {
+      console.warn('Skipped final invalid record:', buffer);
+    }
+  }
+  
+  console.log(`Total processed: ${processedRecords} records`);
+};
+```
+
+### Real-Time Chat Messages
+
+Stream live chat messages:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const streamChatMessages = async (chatId) => {
+  const result = await GET(`/api/chat/${chatId}/stream`);
+  
+  let messageBuffer = '';
+
+  await result.streamChunks((chunk) => {
+    messageBuffer += new TextDecoder().decode(chunk);
+    
+    // Messages are separated by newlines
+    const lines = messageBuffer.split('\n');
+    messageBuffer = lines.pop(); // Keep incomplete message
+    
+    lines.forEach(line => {
+      if (line.trim()) {
+        try {
+          const message = JSON.parse(line);
+          displayChatMessage(message);
+          playNotificationSound();
+        } catch (e) {
+          console.warn('Invalid message format:', line);
+        }
+      }
+    });
+  });
+};
+```
+
+### File Download with Progress
+
+Combine streaming with progress tracking:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const downloadFileWithProgress = async (url, filename) => {
+  const result = await GET(url, {
+    onDownloadProgress: (event) => {
+      if (event.lengthComputable) {
+        const progress = Math.round((event.loaded / event.total) * 100);
+        updateProgressBar(progress);
+      }
+    }
+  });
+
+  if (result.streamToBlob) {
+    try {
+      const blob = await result.streamToBlob();
+      
+      // Create download link
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = filename;
+      link.click();
+      
+      // Cleanup
+      URL.revokeObjectURL(downloadUrl);
+      
+      console.log(`Downloaded ${filename} successfully!`);
+    } catch (error) {
+      console.error('Download failed:', error.message);
+    }
+  }
+};
+```
+
+### Server-Sent Events (SSE) Alternative
+
+Use streaming for SSE-like functionality:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const subscribeToEvents = async () => {
+  const result = await GET('/api/events/stream');
+  
+  let eventBuffer = '';
+
+  await result.streamChunks((chunk) => {
+    eventBuffer += new TextDecoder().decode(chunk);
+    
+    // SSE format: data: {json}\n\n
+    const events = eventBuffer.split('\n\n');
+    eventBuffer = events.pop(); // Keep incomplete event
+    
+    events.forEach(eventData => {
+      if (eventData.startsWith('data: ')) {
+        try {
+          const data = JSON.parse(eventData.slice(6));
+          handleServerEvent(data);
+        } catch (e) {
+          console.warn('Invalid event data:', eventData);
+        }
+      }
+    });
+  });
+};
+```
+
+## Error Handling
+
+Comprehensive error handling for streaming operations:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const robustStreaming = async () => {
+  try {
+    const result = await GET('https://api.example.com/stream');
+    
+    if (!result.streamChunks) {
+      throw new Error('Streaming not supported for this response');
+    }
+    
+    await result.streamChunks((chunk) => {
+      try {
+        processChunk(chunk);
+      } catch (chunkError) {
+        console.warn('Failed to process chunk:', chunkError.message);
+        // Continue processing other chunks
+      }
+    });
+    
+  } catch (streamError) {
+    console.error('Stream failed:', streamError.message);
+    
+    // Fallback to regular response
+    if (result && result.data) {
+      console.log('Falling back to regular response processing');
+      processCompleteData(result.data);
+    }
+  }
+};
+```
+
+## Performance Tips
+
+**Memory Efficiency:**
+- Use `streamChunks()` for large datasets to avoid loading everything into memory
+- Process data incrementally rather than buffering everything
+- Clean up object URLs when done with blobs
+
+**Error Recovery:**
+- Implement chunk-level error handling to continue processing
+- Provide fallbacks for when streaming fails
+- Monitor memory usage for long-running streams
+
+**Real-Time Processing:**
+- Keep chunk processing functions lightweight
+- Use requestAnimationFrame for UI updates
+- Consider using Web Workers for heavy processing
+
+## Related Features
+
+Streaming works seamlessly with other Z-Fetch features:
+
+- **[⭐ Progress Tracking](/docs/new-features/progress-tracking)** - Monitor upload/download progress alongside streaming
+- **[🚨 Error Handling](/docs/new-features/error-handling)** - Comprehensive error handling for streaming operations
+- **[💪 Using Hooks](/docs/interceptors)** - Enhanced hooks system for request lifecycle management
+- **[👉 Request Methods](/docs/methods)** - All HTTP methods support streaming capabilities

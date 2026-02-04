@@ -54,7 +54,9 @@ export function createMockFetch(
           headers: new Headers(),
           body: null,
           bodyUsed: false,
-          clone: () => mockFetch(url, options),
+          clone: function () {
+            return this; // Return self, don't call mockFetch again
+          },
           formData: async () => new FormData(),
           arrayBuffer: async () => new ArrayBuffer(0),
           blob: async () => new Blob(),

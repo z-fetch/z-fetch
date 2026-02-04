@@ -342,6 +342,7 @@ describe("onError Hook Tests", () => {
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
+        mapErrors: true, // Required to get error object for HTTP errors
         withCache: false,
         headers: {
           "X-Custom": "value",
@@ -382,13 +383,14 @@ describe("onError Hook Tests", () => {
   });
 
   describe("Multiple Hook Integration", () => {
-    it("should work alongside onRequest and onResponse hooks", async () => {
+    it("should work alongside onRequest and onResponse hooks when mapErrors: true", async () => {
       const onRequestSpy = vi.fn();
       const onResponseSpy = vi.fn();
       const onErrorSpy = vi.fn();
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
+        mapErrors: true,
         withCache: false,
         hooks: {
           onRequest: onRequestSpy,

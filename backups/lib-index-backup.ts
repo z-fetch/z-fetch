@@ -342,7 +342,7 @@ async function requestWithProgress(
   data: any;
   response: Response | null;
 }> {
-  return new Promise((resolve, _reject) => {
+  return new Promise((resolve, reject) => {
     const mergedConfig = { ...config, ...options };
     let fullUrl = mergedConfig.baseUrl ? mergedConfig.baseUrl + url : url;
 
@@ -619,7 +619,7 @@ function request(
     abortController.abort();
   };
 
-  const promise = new Promise<RequestResult>(async (resolve, _reject) => {
+  const promise = new Promise<RequestResult>(async (resolve, reject) => {
     let loading = true;
     let error: { message: string; status: string | number } | null = null;
     let data: any = null;

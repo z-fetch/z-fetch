@@ -3,12 +3,6 @@ title: 🤝 All Options
 description: Complete guide to instance configuration options and request-level settings.
 ---
 
-<Callout title="Breaking Change in v0.0.14" type="warn">
-  The `mapErrors` and `throwOnError` configuration options have been removed. As
-  of v0.0.14, Z-Fetch always creates error objects for HTTP errors. See the
-  [Error Handling](/docs/new-features/error-handling) documentation for details.
-</Callout>
-
 Z-Fetch provides comprehensive configuration options that can be set at the instance level for consistent behavior across all requests, or at the request level for specific customization.
 
 ## Instance Configuration
@@ -127,6 +121,7 @@ const api = createInstance({
 - Fetch path: sets `credentials: 'include'`.
 - XHR path (when using progress callbacks): sets `xhr.withCredentials = true`.
 
+
 ## Advanced Configuration
 
 ### Timeout
@@ -203,25 +198,94 @@ const api = createInstance({
 
 ## Error Configuration
 
-### Error Mapping
+### Native Fetch Behavior (Default)
 
-Map status codes to user-friendly messages:
+By default, Z-Fetch behaves like native `fetch` - HTTP errors (400s, 500s) do NOT create error objects:
 
 ```js
 const api = createInstance({
+  baseUrl: "https://api.example.com",
+  // mapErrors: false is the default - native fetch behavior
+});
+
+const result = await api.get("/users");
+
+// Check response.ok manually, like native fetch
+if (!result.response?.ok) {
+  console.log("HTTP error:", result.response?.status);
+  console.log("Response body:", result.data); // Still parsed
+} else {
+  console.log("Success:", result.data);
+}
+```
+
+### Traditional API Library Behavior
+
+Enable `mapErrors: true` to create error objects for HTTP errors:
+
+```js
+const api = createInstance({
+  baseUrl: "https://api.example.com",
+  mapErrors: true, // Create error objects for HTTP errors
+  throwOnError: false, // Default: errors in result.error
+});
+
+const result = await api.get("/users");
+if (result.error) {
+  console.error("Error:", result.error.message);
+  console.error("Status:", result.error.status);
+}
+```
+
+### Throwing Mode
+
+When `mapErrors: true`, you can also throw errors as exceptions:
+
+```js
+const api = createInstance({
+  baseUrl: "https://api.example.com",
+  mapErrors: true, // Required for throwOnError to work on HTTP errors
+  throwOnError: true, // Throw errors as exceptions
+});
+
+try {
+  const result = await api.get("/users");
+  console.log("Data:", result.data);
+} catch (error) {
+  console.error("Error:", error.message, error.status);
+}
+```
+
+<Callout title="mapErrors Required for throwOnError" type="info">
+  `throwOnError` only affects HTTP errors when `mapErrors: true`. 
+  With `mapErrors: false` (default), HTTP errors don't create error objects, so there's nothing to throw.
+  Network/timeout/cancel errors always work with `throwOnError`.
+</Callout>
+
+### Error Mapping
+
+Map status codes to user-friendly messages. Requires `mapErrors: true` for HTTP errors:
+
+```js
+const api = createInstance({
+  mapErrors: true, // Required for HTTP error mapping
   errorMapping: {
     // Map backend HTTP status codes
     401: "Please sign in",
     403: "Access denied",
     404: "Not found",
     500: "Server error",
-    // Also map z-fetch internal errors
+    // Also map z-fetch internal errors (always work)
     "fetch failed": "Network connection failed",
   },
 });
 ```
 
-Error mapping works automatically for all error types - no configuration needed.
+<Callout title="Error Mapping Requires mapErrors: true" type="info">
+  By default (`mapErrors: false`), HTTP errors do NOT create error objects.
+  Set `mapErrors: true` to enable error mapping for HTTP status codes.
+  Network/timeout/cancel errors always create error objects regardless of `mapErrors`.
+</Callout>
 
 ### Error Handling Hook
 
@@ -229,7 +293,7 @@ Error mapping works automatically for all error types - no configuration needed.
 const api = createInstance({
   hooks: {
     onError: (context) => {
-      // Global error handling
+      // Global error handling (runs before throwing if throwOnError: true)
       console.error("API Error:", context.error);
       trackError(context.error);
     },
@@ -453,3 +517,4 @@ await api.post("/special-endpoint", {
 <Callout title="Configuration Priority" type="info">
   Request-level options always take precedence over instance-level options.
 </Callout>
+

@@ -1,0 +1,170 @@
+---
+title: Basic HTTP Requests
+description: GET, POST, PUT, DELETE, and PATCH requests made simple.
+---
+
+Z-Fetch supports all the common HTTP methods with a simple, intuitive API.
+
+Making a request can be as easy as:
+
+```js
+import { GET } from "@z-fetch/fetch";
+
+const getData = async () => {
+  const result = await GET("https://api.example.com/data");
+
+  // console.log(result.data);
+  // console.log(result.error);
+  // console.log(result.response);
+
+  return result.data;
+};
+```
+
+## Supported Methods
+
+- **GET** - Retrieve data
+- **POST** - Create new resources
+- **PUT** - Update/replace resources
+- **DELETE** - Remove resources
+- **PATCH** - Partial updates
+
+<Callout title="Heads Up!" type="warn">
+  All method names are uppercase to match the HTTP verbs they represent. When
+  using an instance, they become lowercase: `api.get('url')`.
+</Callout>
+
+## How It Works
+
+1. Each request can be made separately or using an instance
+2. Takes a URL and optional options object
+3. Options support all native fetch options plus Z-Fetch enhancements
+4. Returns a result object with `data`, `error`, and native `response`
+5. Includes additional methods for refetching, canceling, and more
+
+<Callout title="Dev Note" type="info">
+  Z-Fetch is 100% type safe, so expect cool auto-completions from your IDE.
+</Callout>
+
+## Request Examples
+
+### GET Request
+
+```js
+import { GET } from "@z-fetch/fetch";
+
+const getPosts = async () => {
+  const { data, error } = await GET(
+    "https://jsonplaceholder.typicode.com/posts",
+  );
+  if (data) {
+    console.log("Data:", data);
+  } else {
+    console.error("Error:", error.message);
+  }
+};
+```
+
+### Cancel a Request
+
+```js
+const p = GET("https://jsonplaceholder.typicode.com/posts");
+// cancel before it resolves
+p.cancel();
+const res = await p;
+if (res.error?.status === "CANCELED") {
+  console.log("Request was canceled");
+}
+```
+
+### POST Request
+
+```js
+import { POST } from "@z-fetch/fetch";
+
+const createPost = async () => {
+  const { data, error } = await POST(
+    "https://jsonplaceholder.typicode.com/posts",
+    {
+      body: {
+        title: "dune",
+        body: "a story about the dune verse!",
+        userId: 1,
+      },
+    },
+  );
+
+  if (data) {
+    console.log("Created:", data);
+  } else {
+    console.error("Error:", error.message);
+  }
+};
+```
+
+### PUT Request
+
+```js
+import { PUT } from "@z-fetch/fetch";
+
+const updatePost = async () => {
+  const { data, error } = await PUT(
+    "https://jsonplaceholder.typicode.com/posts/1",
+    {
+      body: {
+        title: "dune latest",
+        body: "a story about the dune verse has changed - now the spices rule!",
+        userId: 1,
+      },
+    },
+  );
+
+  if (data) {
+    console.log("Updated:", data);
+  } else {
+    console.error("Error:", error.message);
+  }
+};
+```
+
+### PATCH Request
+
+```js
+import { PATCH } from "@z-fetch/fetch";
+
+const modifyPost = async () => {
+  const { data, error } = await PATCH(
+    "https://jsonplaceholder.typicode.com/posts/1",
+    {
+      body: {
+        title: "dune movie",
+      },
+    },
+  );
+
+  if (data) {
+    console.log("Patched:", data);
+  } else {
+    console.error("Error:", error.message);
+  }
+};
+```
+
+### DELETE Request
+
+```js
+import { DELETE } from "@z-fetch/fetch";
+
+const deletePost = async () => {
+  const { error } = await DELETE(
+    "https://jsonplaceholder.typicode.com/posts/1",
+  );
+
+  if (!error) {
+    console.log("Item deleted successfully!");
+  } else {
+    console.error("Error deleting item:", error.message);
+  }
+};
+```
+

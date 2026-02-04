@@ -1,0 +1,361 @@
+---
+title: Advanced Request Features
+description: Advanced features like polling, caching, cancellation, and streaming for enhanced request handling.
+---
+
+Z-Fetch provides advanced features beyond basic HTTP requests for comprehensive request handling.
+
+## More Advanced Features
+
+Z-Fetch also exposes methods for polling, caching, request cancellation, refetching, streaming, progress tracking, and enhanced error handling:
+
+<Callout title="New Features" type="info">
+  Check out the new streaming support, progress tracking, enhanced hooks system, and error mapping features for even more powerful request handling!
+</Callout>
+
+### Polling
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+let pageCount = 1;
+let pagesData = [];
+
+const getPosts = async () => {
+  const { data, error, loading, startPolling, stopPolling, onPollDataReceived } = await GET(`https://jsonplaceholder.typicode.com/posts?page=${pageCount}`);
+  if (data) {
+    pagesData.push({ page: pageCount, data });
+    pageCount++;
+  } else {
+    console.error('Error:', error.message);
+  }
+
+  if (pageCount < 100) {
+    startPolling(10000); // Poll every 10 seconds
+    onPollDataReceived((pollData) => {
+      pagesData.push({ page: pageCount, data: pollData });
+      pageCount++;
+    });
+  } else {
+    stopPolling();
+  }
+};
+```
+
+### Caching
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const getCachedPosts = async () => {
+  const { data, error, loading } = await GET('https://jsonplaceholder.typicode.com/posts', {
+    withCache: true,
+    revalidateCache: 60000, // Revalidate cache every 60 seconds
+  });
+  if (data) {
+    console.log('Cached Data:', data);
+  } else {
+    console.error('Caching Error:', error.message);
+  }
+};
+```
+
+### Request Cancelling
+
+Cancel requests using the promise's `cancel()` method:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const cancelButton = document.getElementById('cancelButton');
+
+const getPosts = async () => {
+  const promise = GET('https://jsonplaceholder.typicode.com/posts');
+  
+  // Set up cancellation
+  cancelButton.addEventListener('click', () => {
+    promise.cancel(); // Cancel the request
+  });
+  
+  const { data, error } = await promise;
+  
+  if (error?.status === 'CANCELED') {
+    console.log('Request was canceled');
+  } else if (data) {
+    console.log('Data:', data);
+  } else {
+    console.error('Error:', error.message);
+  }
+};
+```
+
+Or cancel via the result's `cancelRequest()` method:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const getPosts = async () => {
+  const promise = GET('https://jsonplaceholder.typicode.com/posts');
+  const result = await promise;
+  
+  // Cancel using result method (if request is still ongoing)
+  result.cancelRequest();
+  
+  if (result.error?.status === 'CANCELED') {
+    console.log('Request was canceled');
+  } else if (result.data) {
+    console.log('Data:', result.data);
+  }
+};
+```
+
+### Refetching
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+let reloadButton = document.getElementById('reloadButton');
+let itemsList = [];
+
+const getPosts = async () => {
+  const { data, error, loading, refetch } = await GET('https://jsonplaceholder.typicode.com/posts');
+  if (data) {
+    itemsList = data;
+  } else {
+    console.error('Error:', error.message);
+  }
+};
+
+reloadButton.addEventListener('click', () => refetch((newData) => {
+  itemsList = newData;
+}));
+```
+
+### Retry Logic
+
+Automatic retry for failed requests:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const api = createInstance({
+  retry: true,
+  maxRetries: 3,
+});
+
+const getPosts = async () => {
+  const { data, error } = await api.get('/posts');
+  // Will automatically retry up to 3 times if request fails
+  if (data) {
+    console.log('Posts:', data);
+  } else {
+    console.error('Failed after retries:', error.message);
+  }
+};
+```
+
+### Streaming Utilities
+
+Process response streams for large data or real-time processing:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const processStream = async () => {
+  const result = await GET('https://api.example.com/large-data');
+  
+  if (result.streamToString) {
+    const text = await result.streamToString();
+    console.log('Streamed text:', text);
+  }
+  
+  if (result.streamToBlob) {
+    const blob = await result.streamToBlob();
+    const url = URL.createObjectURL(blob);
+    console.log('Blob URL:', url);
+  }
+  
+  if (result.streamChunks) {
+    await result.streamChunks((chunk) => {
+      console.log('Received chunk:', chunk);
+      // Process each chunk as it arrives
+    });
+  }
+};
+```
+
+### Progress Tracking
+
+Monitor upload and download progress:
+
+```js
+import { POST } from '@z-fetch/fetch';
+
+const uploadWithProgress = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  const { data, error } = await POST('/upload', {
+    body: formData,
+    onUploadProgress: (event) => {
+      const percentage = Math.round((event.loaded / event.total) * 100);
+      console.log(`Upload: ${percentage}%`);
+    },
+    onDownloadProgress: (event) => {
+      const percentage = Math.round((event.loaded / event.total) * 100);
+      console.log(`Download: ${percentage}%`);
+    }
+  });
+  
+  if (data) {
+    console.log('Upload complete:', data);
+  }
+};
+```
+
+### Instance Helpers
+
+Access and modify instance configuration:
+
+```js
+import { createInstance } from '@z-fetch/fetch';
+
+const api = createInstance({
+  baseUrl: 'https://api.example.com',
+  bearerToken: 'initial-token'
+});
+
+// Get current configuration
+const config = api.helpers.getConfig();
+console.log('Current config:', config);
+
+// Update bearer token dynamically
+api.helpers.setBearerToken('new-token');
+
+// Now all requests will use the new token
+const result = await api.get('/protected-endpoint');
+```
+
+### Error Mapping
+
+Customize error messages for better user experience:
+
+```js
+import { createInstance } from '@z-fetch/fetch';
+
+const api = createInstance({
+  errorMapping: {
+    401: 'Please sign in to continue',
+    403: 'You do not have permission for this action',
+    404: 'The requested resource was not found',
+    429: 'Too many requests. Please slow down.',
+    500: 'Server error. Please try again later.',
+    'fetch failed': 'Network connection failed',
+    'timeout': 'Request timed out'
+  }
+});
+
+const result = await api.get('/users');
+if (result.error) {
+  // Error message will be mapped to user-friendly text
+  console.log('User-friendly error:', result.error.message);
+}
+```
+
+### Native Fetch Options
+
+Use all native fetch options with Z-Fetch enhancements:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const advancedRequest = async () => {
+  const { data, error } = await GET('https://api.example.com/data', {
+    // Native fetch options
+    credentials: 'include',
+    cache: 'no-cache',
+    mode: 'cors',
+    integrity: 'sha256-abc123...',
+    keepalive: true,
+    redirect: 'follow',
+    referrer: 'https://myapp.com',
+    
+    // Z-Fetch specific options
+    timeout: 30000,
+    bearerToken: 'my-token',
+    parseJson: true,
+    stringifyPayload: true
+  });
+  
+  if (data) {
+    console.log('Advanced request result:', data);
+  }
+};
+```
+
+### Timeout Handling
+
+Set request timeouts with automatic error handling:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const quickRequest = async () => {
+  const { data, error } = await GET('/slow-endpoint', {
+    timeout: 5000 // 5 seconds
+  });
+  
+  if (error?.status === 'TIMEOUT') {
+    console.log('Request timed out after 5 seconds');
+  } else if (data) {
+    console.log('Request completed:', data);
+  }
+};
+```
+
+### Force XMLHttpRequest
+
+Force XMLHttpRequest usage even without progress callbacks:
+
+```js
+import { GET } from '@z-fetch/fetch';
+
+const xhrRequest = async () => {
+  const { data, error } = await GET('/endpoint', {
+    useXHRForProgress: true // Force XHR usage
+  });
+  
+  if (data) {
+    console.log('XHR request result:', data);
+  }
+};
+```
+
+### Direct Use of Fetch Options
+
+You can use Z-Fetch as you would use the native fetch, with extra features:
+
+```js
+import { POST } from '@z-fetch/fetch';
+
+const createPost = async () => {
+  const { response } = await POST('https://jsonplaceholder.typicode.com/posts', {
+    body: JSON.stringify({
+      title: 'dune',
+      body: 'A family gets attacked and great houses do nothing about it!',
+      userId: 1,
+    }),
+    parseJson: false,
+    stringifyPayload: false,
+  });
+  const data = await response.json();
+  if (data) {
+    console.log('Data:', data);
+  } else {
+    console.error('Error:', response.error.message);
+  }
+};
+```
+
+
+🙋‍♂️ What else? Suggestions and feedback come in handy on the GitHub page. Please feel free to contribute or report any issues you encounter. This all was made by a human before vibe coding was a thing!

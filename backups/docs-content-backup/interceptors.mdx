@@ -1,0 +1,296 @@
+---
+title: 💪 Interceptors & Hooks
+description: Hooks allow you to hook into the request lifecycle with simplified helper methods.
+---
+
+<Callout title="Looking for interceptors?" type="warn">
+You want to hook into some lifecycle, great, they're called hooks!
+</Callout>
+
+Hooks are a powerful feature that allow you to hook into the request lifecycle in order to intercept and modify requests or responses. The **new simplified hook system** provides helper methods for easy manipulation without complex context returns.
+
+Hooks can be used to implement features such as authentication, logging, custom caching, error handling, and more.
+
+<Callout title="Recommended Approach" type="info">
+Use the **new helper methods** (`setHeaders`, `setBody`, `setOptions`, etc.) for cleaner, more intuitive code. The old context return pattern is still supported for backwards compatibility.
+</Callout>
+
+## How Hooks Work
+
+1. **Set hooks** when creating your instance
+2. **Receive context** - each hook gets a context object with helper methods
+3. **Use helpers** - modify requests/responses using simple helper methods
+4. **Changes applied automatically** - no complex return objects needed
+
+### The Context Object
+
+Each hook receives a `context` object with:
+
+- **`config`** - Current z-fetch configuration
+- **`request`** - Request details (method, url, options)
+- **`result`** - Response result (null during onRequest)
+- **`error`** - Error information (null if no error)
+
+### Helper Methods
+
+The context provides convenient helper methods for easy manipulation:
+
+- **`setHeaders()`** - Update request headers (supports in-place or return-based modification)
+- **`setBody()`** - Update request body
+- **`setOptions()`** - Update request options (cache, mode, credentials, etc.)
+- **`setUrl()`** - Update request URL
+- **`setMethod()`** - Update request method
+- **`setError()`** - Update error information (onError hook only)
+
+## Request Hooks (`onRequest`)
+
+Request hooks allow you to modify the request before it's sent using helper methods:
+
+```js
+const api = createInstance({
+  baseUrl: 'https://jsonplaceholder.typicode.com',
+  hooks: {
+    onRequest: async (context) => {
+      console.log('Request about to be sent:', context.request);
+
+      // Add custom headers using helper method
+      context.setHeaders((headers) => ({
+        ...headers,
+        'X-Timestamp': Date.now().toString(),
+        'X-Custom': 'value'
+      }));
+
+      // Modify URL for GET requests
+      if (context.request.method === 'GET') {
+        context.setUrl(context.request.url + '?custom=true');
+      }
+
+      // Update request options
+      context.setOptions((options) => ({
+        ...options,
+        cache: 'no-cache'
+      }));
+    }
+  }
+});
+```
+
+## Response Hooks (`onResponse`)
+
+Response hooks allow you to modify the response before it's returned:
+
+```js
+const api = createInstance({
+  baseUrl: 'https://jsonplaceholder.typicode.com',
+  hooks: {
+    onResponse: async (context) => {
+      console.log('Response received:', context.result);
+
+      // Transform the response data
+      if (context.result?.data) {
+        // Modify the result data directly
+        context.result.data = {
+          ...context.result.data,
+          processed: true,
+          timestamp: Date.now()
+        };
+      }
+    }
+  }
+});
+```
+
+## Error Hooks (`onError`)
+
+Error hooks allow you to handle and modify errors when they occur:
+
+```js
+const api = createInstance({
+  baseUrl: 'https://api.example.com',
+  hooks: {
+    onError: async (context) => {
+      console.log('Error occurred:', context.error);
+      
+      // Access full context
+      console.log('Request URL:', context.request?.url);
+      console.log('Request method:', context.request?.method);
+      
+      // Modify error using helper method
+      context.setError({
+        message: "Something went wrong. Please try again.",
+        status: context.error?.status || "UNKNOWN",
+        originalError: context.error,
+      });
+    }
+  }
+});
+```
+
+## Combining Multiple Hooks
+
+You can use all three hooks together for comprehensive request handling:
+
+```js
+const api = createInstance({
+  baseUrl: 'https://api.example.com',
+  hooks: {
+    onRequest: async (context) => {
+      // Log all outgoing requests
+      console.log(`[${new Date().toISOString()}] Sending ${context.request.method} request to ${context.request.url}`);
+
+      // Add authentication token from localStorage
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        context.setHeaders((headers) => ({
+          ...headers,
+          'Authorization': `Bearer ${token}`
+        }));
+      }
+    },
+    
+    onResponse: async (context) => {
+      // Handle 401 Unauthorized errors
+      if (context.result?.error && context.result.error.status === 401) {
+        // Clear invalid token
+        localStorage.removeItem('auth_token');
+        // Redirect to login page
+        window.location.href = '/login';
+      }
+
+      // Add metadata to successful responses
+      if (context.result?.data) {
+        context.result.data = {
+          ...context.result.data,
+          _meta: {
+            timestamp: Date.now(),
+            environment: process.env.NODE_ENV
+          }
+        };
+      }
+    },
+    
+    onError: async (context) => {
+      // Handle all errors consistently
+      console.error('Request failed:', context.error);
+      
+      // Custom error handling based on error type
+      if (context.error?.status === 'NETWORK_ERROR') {
+        context.setError({
+          message: 'Network connection failed. Please check your internet connection.',
+          status: context.error.status
+        });
+      }
+    }
+  }
+});
+```
+
+## Advanced Helper Usage
+
+### Modifying Request Body
+
+```js
+const api = createInstance({
+  baseUrl: 'https://api.example.com',
+  hooks: {
+    onRequest: async (context) => {
+      // Add data to existing body
+      if (context.request.options.body) {
+        const currentBody = JSON.parse(context.request.options.body);
+        context.setBody({
+          ...currentBody,
+          timestamp: Date.now(),
+          userId: getCurrentUserId()
+        });
+      }
+    }
+  }
+});
+```
+
+### Changing HTTP Method
+
+```js
+const api = createInstance({
+  baseUrl: 'https://api.example.com',
+  hooks: {
+    onRequest: async (context) => {
+      // Convert GET to POST for certain endpoints
+      if (context.request.url.includes('/batch')) {
+        context.setMethod('POST');
+        context.setBody({ batch: true });
+      }
+    }
+  }
+});
+```
+
+### In-Place Modifications
+
+Helper methods support both return-based and in-place modifications:
+
+```js
+const api = createInstance({
+  baseUrl: 'https://api.example.com',
+  hooks: {
+    onRequest: async (context) => {
+      // Return-based modification (recommended)
+      context.setHeaders((headers) => ({
+        ...headers,
+        'X-Return-Based': 'value'
+      }));
+
+      // In-place modification (also works)
+      context.setHeaders((headers) => {
+        headers['X-In-Place'] = 'value';
+        // No return - uses in-place modification
+      });
+    }
+  }
+});
+```
+
+
+## Backwards Compatibility
+
+The hook system maintains backwards compatibility with the old context return pattern (v0.0.10):
+
+```js
+const api = createInstance({
+  baseUrl: 'https://api.example.com',
+  hooks: {
+    onRequest: async (context) => {
+      // Old way - still works
+      return {
+        request: {
+          options: {
+            headers: {
+              'X-Old-Way': 'still-works'
+            }
+          }
+        }
+      };
+    }
+  }
+});
+```
+
+<Callout title="Migration Guide" type="info">
+**Recommended**: Use the new helper methods for cleaner, more intuitive code. The old pattern is supported but the new helpers are easier to use and maintain.
+</Callout>
+
+## Related Features
+
+Hooks work seamlessly with other Z-Fetch features:
+
+- **[🟡 Streaming Support](/docs/new-features/streaming)** - Process response streams with built-in utilities
+- **[⭐ Progress Tracking](/docs/new-features/progress-tracking)** - Real-time upload and download progress monitoring  
+- **[🚨 Error Handling](/docs/new-features/error-handling)** - Comprehensive error handling with onError hook and error mapping
+- **[🔧 Advanced Features](/docs/methods/advanced-requests)** - Polling, caching, cancellation, and more advanced capabilities
+- **[👉 Request Methods](/docs/methods)** - All HTTP methods support hooks for request lifecycle management
+
+For comprehensive error handling with error mapping and advanced features, see the **[🚨 Error Handling](/docs/new-features/error-handling)** documentation.
+
+With these powerful hooks and helper methods, you can implement complex request/response processing, authentication flows, logging, error handling, and data transformation in a clean and intuitive way. 
+
+Any more hooks you think would be useful? Feel free to suggest them!
