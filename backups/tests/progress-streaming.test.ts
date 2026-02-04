@@ -317,12 +317,13 @@ describe("Progress and Streaming Support Tests", () => {
       expect(result.error?.message).toBe("Custom network error message");
     });
 
-    it("should handle HTTP errors with XMLHttpRequest (always creates error)", async () => {
+    it("should handle HTTP errors with XMLHttpRequest when mapErrors: true", async () => {
       const onDownloadProgress = vi.fn();
 
       const api = createInstance({
         baseUrl: "https://api.example.com",
         onDownloadProgress,
+        mapErrors: true, // Required for HTTP errors to create error objects
         withCache: false,
         errorMapping: {
           404: "Custom 404 message",
@@ -342,8 +343,8 @@ describe("Progress and Streaming Support Tests", () => {
 
       const result = await api.get("/notfound-xhr");
 
-      // Library always creates error objects for non-2xx responses
       expect(result.error).toBeTruthy();
+      // Should use mapped message when mapErrors: true
       expect(result.error?.message).toBe("Custom 404 message");
       expect(result.error?.status).toBe(404);
     });

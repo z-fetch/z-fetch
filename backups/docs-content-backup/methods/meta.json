@@ -1,0 +1,8 @@
+{
+  "title": "HTTP Methods",
+  "pages": [
+    "basic-requests",
+    "advanced-requests",
+    "advanced-methods"
+  ]
+}

@@ -5,7 +5,7 @@ import { createInstance, GET, POST, PUT, DELETE } from "../lib/index";
 /**
  * Integration tests using a local HTTP server.
  * This ensures tests work reliably without depending on external APIs.
- *
+ * 
  * Creates a simple REST API that mimics JSONPlaceholder behavior.
  */
 
@@ -22,7 +22,7 @@ const users = [
 // Simple HTTP server that mimics a REST API
 function createTestServer() {
   let nextPostId = 3;
-
+  
   const server = createServer((req: IncomingMessage, res: ServerResponse) => {
     const url = new URL(req.url || "/", `http://localhost`);
     const path = url.pathname;
@@ -30,14 +30,8 @@ function createTestServer() {
 
     // CORS headers
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader(
-      "Access-Control-Allow-Methods",
-      "GET, POST, PUT, DELETE, OPTIONS",
-    );
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-Custom-Header, X-Instance-Header, X-Request-Header",
-    );
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Custom-Header, X-Instance-Header, X-Request-Header");
     res.setHeader("Content-Type", "application/json");
 
     // Handle preflight
@@ -134,9 +128,7 @@ function createTestServer() {
       // GET /error/400 - Return 400 Bad Request
       if (method === "GET" && path === "/error/400") {
         res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(
-          JSON.stringify({ error: "Bad Request", message: "Invalid input" }),
-        );
+        res.end(JSON.stringify({ error: "Bad Request", message: "Invalid input" }));
         return;
       }
 
@@ -176,7 +168,7 @@ describe("Integration Tests with Local Server", () => {
 
   beforeAll(async () => {
     server = createTestServer();
-
+    
     // Start server and get the assigned port
     await new Promise<void>((resolve) => {
       server.listen(0, "127.0.0.1", () => {
@@ -235,50 +227,46 @@ describe("Integration Tests with Local Server", () => {
       });
     });
 
-    it("GET with 404 should create error object", async () => {
+    it("GET with 404 should not create error (mapErrors: false default)", async () => {
       const result = await GET(`${BASE_URL}/posts/99999`, {
         withCache: false,
       });
 
-      // Library always creates error objects for non-2xx responses
-      expect(result.error).not.toBeNull();
-      expect(result.error?.status).toBe(404);
-      expect(result.error?.message).toBeDefined();
+      // mapErrors: false by default = like native fetch
+      expect(result.error).toBeNull();
       expect(result.response?.ok).toBe(false);
       expect(result.response?.status).toBe(404);
     });
 
-    it("GET with 400 should create error object", async () => {
+    it("GET with 400 should not create error (mapErrors: false default)", async () => {
       const result = await GET(`${BASE_URL}/error/400`, {
         withCache: false,
       });
 
-      // Library always creates error objects for non-2xx responses
-      expect(result.error).not.toBeNull();
-      expect(result.error?.status).toBe(400);
-      expect(result.error?.message).toBeDefined();
+      // mapErrors: false by default = like native fetch
+      expect(result.error).toBeNull();
       expect(result.response?.ok).toBe(false);
       expect(result.response?.status).toBe(400);
+      expect(result.data).toMatchObject({ error: "Bad Request" });
     });
 
-    it("GET with 500 should create error object", async () => {
+    it("GET with 500 should not create error (mapErrors: false default)", async () => {
       const result = await GET(`${BASE_URL}/error/500`, {
         withCache: false,
       });
 
-      // Library always creates error objects for non-2xx responses
-      expect(result.error).not.toBeNull();
-      expect(result.error?.status).toBe(500);
-      expect(result.error?.message).toBeDefined();
+      // mapErrors: false by default = like native fetch
+      expect(result.error).toBeNull();
       expect(result.response?.ok).toBe(false);
       expect(result.response?.status).toBe(500);
     });
   });
 
-  describe("Instance - unified error handling API", () => {
+  describe("Instance with mapErrors: false (native fetch behavior)", () => {
     it("should successfully fetch data on 200", async () => {
       const api = createInstance({
         baseUrl: BASE_URL,
+        mapErrors: false,
         withCache: false,
       });
 
@@ -295,46 +283,54 @@ describe("Integration Tests with Local Server", () => {
       });
     });
 
-    it("should CREATE error object for 404", async () => {
+    it("should NOT create error for 404 - behave like native fetch", async () => {
       const api = createInstance({
         baseUrl: BASE_URL,
+        mapErrors: false,
         withCache: false,
       });
 
       const result = await api.get("/posts/99999");
 
-      expect(result.error).not.toBeNull();
-      expect(result.error?.status).toBe(404);
-      expect(result.error?.message).toBeDefined();
+      expect(result.error).toBeNull();
+      expect(result.response?.ok).toBe(false);
+      expect(result.response?.status).toBe(404);
+      expect(result.data).toMatchObject({ error: "Not Found" });
     });
 
-    it("should CREATE error object for 400", async () => {
+    it("should NOT create error for 400 - behave like native fetch", async () => {
       const api = createInstance({
         baseUrl: BASE_URL,
+        mapErrors: false,
         withCache: false,
       });
 
       const result = await api.get("/error/400");
 
-      expect(result.error).not.toBeNull();
-      expect(result.error?.status).toBe(400);
+      expect(result.error).toBeNull();
+      expect(result.response?.ok).toBe(false);
+      expect(result.response?.status).toBe(400);
+      expect(result.data).toMatchObject({ error: "Bad Request" });
     });
 
-    it("should CREATE error object for 500", async () => {
+    it("should NOT create error for 500 - behave like native fetch", async () => {
       const api = createInstance({
         baseUrl: BASE_URL,
+        mapErrors: false,
         withCache: false,
       });
 
       const result = await api.get("/error/500");
 
-      expect(result.error).not.toBeNull();
-      expect(result.error?.status).toBe(500);
+      expect(result.error).toBeNull();
+      expect(result.response?.ok).toBe(false);
+      expect(result.response?.status).toBe(500);
     });
 
     it("should make POST request successfully", async () => {
       const api = createInstance({
         baseUrl: BASE_URL,
+        mapErrors: false,
         withCache: false,
       });
 
@@ -354,6 +350,7 @@ describe("Integration Tests with Local Server", () => {
     it("should make PUT request successfully", async () => {
       const api = createInstance({
         baseUrl: BASE_URL,
+        mapErrors: false,
         withCache: false,
       });
 
@@ -374,6 +371,7 @@ describe("Integration Tests with Local Server", () => {
     it("should make DELETE request successfully", async () => {
       const api = createInstance({
         baseUrl: BASE_URL,
+        mapErrors: false,
         withCache: false,
       });
 
@@ -383,19 +381,120 @@ describe("Integration Tests with Local Server", () => {
       expect(result.response?.ok).toBe(true);
       expect(result.response?.status).toBe(200);
     });
+  });
 
-    it("should never throw - always returns { data, error }", async () => {
+  describe("Instance with mapErrors: true (create error objects)", () => {
+    it("should successfully fetch data on 200", async () => {
       const api = createInstance({
         baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: false,
         withCache: false,
       });
 
-      // 404 should return error object, not throw
+      const result = await api.get("/users/1");
+
+      expect(result.error).toBeNull();
+      expect(result.response?.ok).toBe(true);
+    });
+
+    it("should CREATE error object for 404", async () => {
+      const api = createInstance({
+        baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: false,
+        withCache: false,
+      });
+
       const result = await api.get("/posts/99999");
 
-      expect(result).toBeDefined();
       expect(result.error).not.toBeNull();
       expect(result.error?.status).toBe(404);
+      expect(result.error?.message).toBeDefined();
+    });
+
+    it("should CREATE error object for 400", async () => {
+      const api = createInstance({
+        baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: false,
+        withCache: false,
+      });
+
+      const result = await api.get("/error/400");
+
+      expect(result.error).not.toBeNull();
+      expect(result.error?.status).toBe(400);
+    });
+
+    it("should CREATE error object for 500", async () => {
+      const api = createInstance({
+        baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: false,
+        withCache: false,
+      });
+
+      const result = await api.get("/error/500");
+
+      expect(result.error).not.toBeNull();
+      expect(result.error?.status).toBe(500);
+    });
+  });
+
+  describe("Instance with mapErrors: true + throwOnError: true", () => {
+    it("should not throw on successful request", async () => {
+      const api = createInstance({
+        baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: true,
+        withCache: false,
+      });
+
+      const result = await api.get("/posts/1");
+
+      expect(result.error).toBeNull();
+      expect(result.data?.id).toBe(1);
+    });
+
+    it("should THROW on 404 error", async () => {
+      const api = createInstance({
+        baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: true,
+        withCache: false,
+      });
+
+      await expect(api.get("/posts/99999")).rejects.toMatchObject({
+        status: 404,
+        message: expect.any(String),
+      });
+    });
+
+    it("should THROW on 400 error", async () => {
+      const api = createInstance({
+        baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: true,
+        withCache: false,
+      });
+
+      await expect(api.get("/error/400")).rejects.toMatchObject({
+        status: 400,
+      });
+    });
+
+    it("should THROW on 500 error", async () => {
+      const api = createInstance({
+        baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: true,
+        withCache: false,
+      });
+
+      await expect(api.get("/error/500")).rejects.toMatchObject({
+        status: 500,
+      });
     });
   });
 
@@ -403,6 +502,8 @@ describe("Integration Tests with Local Server", () => {
     it("should use custom error mapping for 404", async () => {
       const api = createInstance({
         baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: false,
         withCache: false,
         errorMapping: {
           404: "Resource not found",
@@ -420,6 +521,8 @@ describe("Integration Tests with Local Server", () => {
     it("should use custom error mapping for 400", async () => {
       const api = createInstance({
         baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: false,
         withCache: false,
         errorMapping: {
           400: "Invalid request data",
@@ -436,6 +539,8 @@ describe("Integration Tests with Local Server", () => {
     it("should use custom error mapping for 500", async () => {
       const api = createInstance({
         baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: false,
         withCache: false,
         errorMapping: {
           500: "Something went wrong on the server",
@@ -448,10 +553,75 @@ describe("Integration Tests with Local Server", () => {
       expect(result.error?.message).toBe("Something went wrong on the server");
       expect(result.error?.status).toBe(500);
     });
+  });
 
-    it("should use per-request errorMapping override", async () => {
+  describe("Per-request config overrides", () => {
+    it("per-request mapErrors: true should override instance mapErrors: false", async () => {
       const api = createInstance({
         baseUrl: BASE_URL,
+        mapErrors: false,
+        withCache: false,
+      });
+
+      const result = await api.get("/posts/99999", {
+        mapErrors: true,
+      });
+
+      expect(result.error).not.toBeNull();
+      expect(result.error?.status).toBe(404);
+    });
+
+    it("per-request mapErrors: false should override instance mapErrors: true", async () => {
+      const api = createInstance({
+        baseUrl: BASE_URL,
+        mapErrors: true,
+        withCache: false,
+      });
+
+      const result = await api.get("/posts/99999", {
+        mapErrors: false,
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.response?.ok).toBe(false);
+      expect(result.response?.status).toBe(404);
+    });
+
+    it("per-request throwOnError: true should override instance throwOnError: false", async () => {
+      const api = createInstance({
+        baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: false,
+        withCache: false,
+      });
+
+      await expect(
+        api.get("/posts/99999", { throwOnError: true })
+      ).rejects.toMatchObject({
+        status: 404,
+      });
+    });
+
+    it("per-request throwOnError: false should override instance throwOnError: true", async () => {
+      const api = createInstance({
+        baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: true,
+        withCache: false,
+      });
+
+      const result = await api.get("/posts/99999", {
+        throwOnError: false,
+      });
+
+      expect(result.error).not.toBeNull();
+      expect(result.error?.status).toBe(404);
+    });
+
+    it("per-request errorMapping should override instance errorMapping", async () => {
+      const api = createInstance({
+        baseUrl: BASE_URL,
+        mapErrors: true,
         withCache: false,
         errorMapping: {
           404: "Instance: Not Found",
@@ -466,6 +636,34 @@ describe("Integration Tests with Local Server", () => {
 
       expect(result.error).not.toBeNull();
       expect(result.error?.message).toBe("Request: Custom 404 Message");
+    });
+  });
+
+  describe("Instance config isolation", () => {
+    it("different instances should have isolated configs", async () => {
+      const apiWithErrors = createInstance({
+        baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: true,
+        withCache: false,
+      });
+
+      const apiNativeFetch = createInstance({
+        baseUrl: BASE_URL,
+        mapErrors: false,
+        throwOnError: false,
+        withCache: false,
+      });
+
+      // apiWithErrors should throw on 404
+      await expect(apiWithErrors.get("/posts/99999")).rejects.toMatchObject({
+        status: 404,
+      });
+
+      // apiNativeFetch should NOT throw
+      const result = await apiNativeFetch.get("/posts/99999");
+      expect(result.error).toBeNull();
+      expect(result.response?.ok).toBe(false);
     });
   });
 
@@ -492,6 +690,7 @@ describe("Integration Tests with Local Server", () => {
     it("should preserve response object for manual inspection", async () => {
       const api = createInstance({
         baseUrl: BASE_URL,
+        mapErrors: false,
         withCache: false,
       });
 
@@ -502,15 +701,16 @@ describe("Integration Tests with Local Server", () => {
       expect(result.response?.status).toBe(200);
     });
 
-    it("should still provide error response data when error is created", async () => {
+    it("should parse error response data with mapErrors: false", async () => {
       const api = createInstance({
         baseUrl: BASE_URL,
+        mapErrors: false,
         withCache: false,
       });
 
       const result = await api.get("/error/400");
 
-      expect(result.error).not.toBeNull();
+      expect(result.error).toBeNull();
       expect(result.data).toMatchObject({
         error: "Bad Request",
         message: "Invalid input",
@@ -554,17 +754,31 @@ describe("Integration Tests with Local Server", () => {
   });
 
   describe("getConfig helper", () => {
-    it("should return correct config for instance", () => {
+    it("should return correct config for mapErrors: false", () => {
       const api = createInstance({
         baseUrl: BASE_URL,
-        errorMapping: { 404: "Not Found" },
-        withCache: false,
+        mapErrors: false,
+        throwOnError: false,
       });
 
       const config = api.helpers.getConfig();
+      expect(config.mapErrors).toBe(false);
+      expect(config.throwOnError).toBe(false);
       expect(config.baseUrl).toBe(BASE_URL);
+    });
+
+    it("should return correct config for mapErrors: true", () => {
+      const api = createInstance({
+        baseUrl: BASE_URL,
+        mapErrors: true,
+        throwOnError: true,
+        errorMapping: { 404: "Not Found" },
+      });
+
+      const config = api.helpers.getConfig();
+      expect(config.mapErrors).toBe(true);
+      expect(config.throwOnError).toBe(true);
       expect(config.errorMapping).toEqual({ 404: "Not Found" });
-      expect(config.withCache).toBe(false);
     });
   });
 });

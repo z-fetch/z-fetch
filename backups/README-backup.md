@@ -194,9 +194,11 @@ const api = createInstance({
 const result = await api.get("/user-data");
 ```
 
-### Error Handling
+### Error Handling - Native Fetch Behavior (Default)
 
-Z-Fetch provides a consistent `{ data, error }` result for all requests. HTTP errors (4xx, 5xx), network errors, timeouts, and cancellations all populate the `error` object with a unified structure.
+By default, Z-Fetch behaves like native `fetch` for HTTP errors:
+
+#### Default: `mapErrors: false` - Native Fetch Behavior
 
 ```js
 import { createInstance, GET } from "@z-fetch/fetch";
@@ -205,50 +207,106 @@ const api = createInstance({
   baseUrl: "https://api.example.com",
 });
 
-// Always destructure data and error
-const { data, error } = await api.get("/protected");
+// HTTP errors (400s, 500s) do NOT create error objects - just like native fetch
+const result = await api.get("/protected");
 
-if (error) {
-  // Unified error structure for all error types
-  console.log("Error:", error.message); // Error message
-  console.log("Status:", error.status); // 401, 404, 500, "NETWORK_ERROR", "TIMEOUT", etc.
-  console.log("Data:", data); // Response body still parsed even on error
+// Check response.ok manually, like you would with native fetch
+if (!result.response?.ok) {
+  console.log("HTTP error:", result.response?.status); // e.g., 401, 404, 500
+  console.log("Response body:", result.data); // Response body is still parsed
 } else {
-  console.log("Success:", data);
+  console.log("Success:", result.data);
 }
+
+// result.error is null for HTTP errors with mapErrors: false
+// Only network/timeout/cancel errors set result.error
 ```
 
-#### Error Mapping
+#### Optional: `mapErrors: true` - Create Error Objects for HTTP Errors
 
-Customize error messages by status code or pattern using `errorMapping`:
+Enable `mapErrors: true` to create error objects for HTTP errors (traditional API library behavior):
 
 ```js
 const api = createInstance({
   baseUrl: "https://api.example.com",
+  mapErrors: true, // Enable error objects for HTTP errors
   errorMapping: {
-    // Map status codes to custom messages
+    // Optionally map status codes to custom messages
     401: "Authentication failed - please sign in again",
     403: "Access denied - insufficient permissions",
     404: "Resource not found",
     500: "Server error - please try again later",
-    // Map z-fetch internal errors
-    NETWORK_ERROR: "Network connection failed",
-    TIMEOUT: "Request took too long",
+    // Also map z-fetch internal errors
+    "fetch failed": "Network connection failed",
   },
 });
 
-const { data, error } = await api.get("/protected");
-if (error) {
-  console.log(error.message); // Uses custom mapped message
-  console.log(error.status); // 401, 404, 500, etc.
+const result = await api.get("/protected");
+if (result.error) {
+  console.log(result.error.message); // Custom mapped message or statusText
+  console.log(result.error.status); // 401, 404, 500, etc.
 }
 ```
 
-**Note:** Error mapping is optional. When no mapping is provided for a status code, the library uses `response.statusText` as the default message.
+**Note:** By default (`mapErrors: false`), Z-Fetch behaves like native `fetch` - HTTP errors do NOT create error objects. You check `response.ok` manually. Network/timeout/cancel errors still create error objects. Set `mapErrors: true` to get traditional API library behavior where HTTP errors create error objects.
 
----
+### `throwOnError` Configuration
 
-**⚠️ DEPRECATED (v0.0.14):** The `mapErrors` and `throwOnError` configuration options have been removed. Z-Fetch now always creates error objects for HTTP errors and never throws. The API is unified - always use `const { data, error } = result` for all requests.
+When `mapErrors: true` is enabled, you can choose between returning errors in `result.error` or throwing them:
+
+#### Default: `throwOnError: false` - Errors Returned in Result
+
+```js
+import { createInstance } from "@z-fetch/fetch";
+
+const api = createInstance({
+  baseUrl: "https://api.example.com",
+  mapErrors: true, // Required for throwOnError to have effect on HTTP errors
+  throwOnError: false, // Default - errors in result.error
+});
+
+const result = await api.get("/users");
+if (result.error) {
+  console.error("Request failed:", result.error.message);
+  console.error("Status:", result.error.status);
+} else {
+  console.log("Data:", result.data);
+}
+```
+
+#### `throwOnError: true` - Errors Are Thrown
+
+```js
+import { createInstance } from "@z-fetch/fetch";
+
+const api = createInstance({
+  baseUrl: "https://api.example.com",
+  mapErrors: true, // Required for throwOnError to have effect on HTTP errors
+  throwOnError: true, // Throw errors as exceptions
+});
+
+try {
+  const result = await api.get("/users");
+  console.log("Data:", result.data);
+} catch (error) {
+  console.error("Request failed:", error.message);
+  console.error("Status:", error.status);
+}
+
+// Override per request
+const result = await api.get("/users", { throwOnError: false });
+if (result.error) {
+  console.error("Error:", result.error);
+}
+```
+
+**Note:** `throwOnError` only affects HTTP errors when `mapErrors: true`. Network/timeout/cancel errors always create error objects regardless of `mapErrors` setting.
+
+**Benefits:**
+- **Default (throwOnError: false)**: Safer, no unexpected crashes, explicit error checking
+- **throwOnError: true**: Familiar try-catch pattern for developers from fetch/axios
+- **Flexible**: Configure globally or per-request
+- **Works with all features**: Retries, error mapping, hooks, and caching all work with both modes
 
 ## 🌟 Contributing
 
